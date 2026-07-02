@@ -1,0 +1,51 @@
+﻿using Ecomerce_dotnet.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore; // Added this
+using Microsoft.EntityFrameworkCore;
+
+namespace Ecomerce_dotnet.Data
+{
+    public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
+    {
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+
+        // NOTE: IdentityDbContext already includes a DbSet for Users. 
+        // You don't strictly need to declare it again, but it doesn't hurt.
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<Product> Products { get; set; }
+        public DbSet<ProductVariant> ProductVariants { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+        public DbSet<Banner> Banners { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<WishlistItem> WishlistItems { get; set; }
+        public DbSet<ProductImage> ProductImages { get; set; }
+        public DbSet<CartItem> CartItems { get; set; }
+        public DbSet<Cart> Carts { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // 1. Configure Decimal precisions
+            modelBuilder.Entity<Product>().Property(p => p.BasePrice).HasColumnType("decimal(18,2)");
+            modelBuilder.Entity<Product>().Property(p => p.DiscountPercentage).HasColumnType("decimal(5,2)");
+            modelBuilder.Entity<Order>().Property(o => o.TotalAmount).HasColumnType("decimal(18,2)");
+            modelBuilder.Entity<OrderItem>().Property(oi => oi.PriceAtPurchase).HasColumnType("decimal(18,2)");
+
+            // 2. Prevent Cascade Delete loops
+            modelBuilder.Entity<OrderItem>()
+                .HasOne(oi => oi.ProductVariant)
+                .WithMany()
+                .HasForeignKey(oi => oi.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // 3. Configure 1-to-1 relationship for Order & Payment
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.Payment)
+                .WithOne(p => p.Order)
+                .HasForeignKey<Payment>(p => p.OrderId);
+        }
+    }
+}
