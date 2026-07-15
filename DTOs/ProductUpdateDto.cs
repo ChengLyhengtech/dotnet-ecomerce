@@ -19,5 +19,8 @@ namespace Ecomerce_dotnet.DTOs
 
         [Required]
         public Guid CategoryId { get; set; }
+
+        [Required]
+        public Guid BrandId { get; set; }
     }
 }

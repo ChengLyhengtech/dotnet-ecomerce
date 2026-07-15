@@ -148,4 +148,15 @@ D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net
 D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\Newtonsoft.Json.dll
 D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\System.Management.dll
 D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\runtimes\win\lib\net7.0\System.Management.dll
-D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\Microsoft.Extensions.Caching.Abstractions.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\Microsoft.Extensions.Caching.StackExchangeRedis.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\Microsoft.Extensions.Logging.Abstractions.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\Microsoft.Extensions.Options.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\Microsoft.Extensions.Primitives.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\StackExchange.Redis.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\System.Diagnostics.DiagnosticSource.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\obj\Debug\net8.0\Ecomerce-dotnet.sourcelink.json
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\RESPite.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\System.IO.Hashing.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\System.IO.Pipelines.dll

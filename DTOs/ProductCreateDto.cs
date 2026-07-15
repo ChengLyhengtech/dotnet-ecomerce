@@ -22,6 +22,8 @@ namespace Ecomerce_dotnet.DTOs
 
         [Required]
         public Guid CategoryId { get; set; }
+        [Required]
+        public Guid BrandId { get; set; }
         // Explicitly intercept the form field and process it as JSON data
         [ModelBinder(BinderType = typeof(JsonModelBinder))]
         public List<VariantCreateDto> Variants { get; set; } = new();

@@ -1,4 +1,4 @@
-﻿using Ecomerce_dotnet.Models;
+using Ecomerce_dotnet.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore; // Added this
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +22,9 @@ namespace Ecomerce_dotnet.Data
         public DbSet<WishlistItem> WishlistItems { get; set; }
         public DbSet<ProductImage> ProductImages { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
+        public DbSet<Brand> Brands { get; set; } 
         public DbSet<Cart> Carts { get; set; }
+        public DbSet<StockMovement> StockMovements { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,11 +43,27 @@ namespace Ecomerce_dotnet.Data
                 .HasForeignKey(oi => oi.VariantId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // If your database table is literally singular 'Brand', 
+            // add this line below to force EF Core to point to the singular table name:
+            modelBuilder.Entity<Brand>().ToTable("Brand");
+
             // 3. Configure 1-to-1 relationship for Order & Payment
             modelBuilder.Entity<Order>()
                 .HasOne(o => o.Payment)
                 .WithOne(p => p.Order)
                 .HasForeignKey<Payment>(p => p.OrderId);
+
+            // 4. Configure StockMovement mappings
+            modelBuilder.Entity<StockMovement>()
+                .Property(sm => sm.MovementType)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            modelBuilder.Entity<StockMovement>()
+                .HasOne(sm => sm.ProductVariant)
+                .WithMany()
+                .HasForeignKey(sm => sm.ProductVariantId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

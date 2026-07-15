@@ -39,10 +39,18 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontendOnly", policy =>
     {
-        policy.WithOrigins("http://127.0.0.1:5501") // Replace with your frontend URL if different
+        policy.WithOrigins("http://localhost:4200") // Replace with your frontend URL if different
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
+});
+
+// Redis Catch
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    // If running locally, this is usually "localhost:6379"
+    options.Configuration = builder.Configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+    options.InstanceName = "Ecom_";
 });
 
 

@@ -169,8 +169,175 @@
   },
   {
     "ContainingType": "Ecomerce_dotnet.Controllers.BannersController",
+    "Method": "GetById",
+    "RelativePath": "api/Banners/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.BannersController",
+    "Method": "Update",
+    "RelativePath": "api/Banners/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "Name",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "LinkUrl",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Position",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortOrder",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsActive",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "ImageFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.BannersController",
     "Method": "Delete",
     "RelativePath": "api/Banners/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.BannersController",
+    "Method": "ToggleActive",
+    "RelativePath": "api/Banners/{id}/toggle-active",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.BrandsController",
+    "Method": "GetAll",
+    "RelativePath": "api/Brands",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.BrandsController",
+    "Method": "Create",
+    "RelativePath": "api/Brands",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Name",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "LogoImage",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.BrandsController",
+    "Method": "GetById",
+    "RelativePath": "api/Brands/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.BrandsController",
+    "Method": "Update",
+    "RelativePath": "api/Brands/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "Name",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "LogoImage",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.BrandsController",
+    "Method": "Delete",
+    "RelativePath": "api/Brands/{id}",
     "HttpMethod": "DELETE",
     "IsController": true,
     "Order": 0,
@@ -253,7 +420,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "CategoriesController",
+    "ContainingType": "Ecomerce_dotnet.Controllers.CategoriesController",
     "Method": "GetAll",
     "RelativePath": "api/Categories",
     "HttpMethod": "GET",
@@ -263,7 +430,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "CategoriesController",
+    "ContainingType": "Ecomerce_dotnet.Controllers.CategoriesController",
     "Method": "Create",
     "RelativePath": "api/Categories",
     "HttpMethod": "POST",
@@ -284,7 +451,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "CategoriesController",
+    "ContainingType": "Ecomerce_dotnet.Controllers.CategoriesController",
     "Method": "GetById",
     "RelativePath": "api/Categories/{id}",
     "HttpMethod": "GET",
@@ -300,7 +467,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "CategoriesController",
+    "ContainingType": "Ecomerce_dotnet.Controllers.CategoriesController",
     "Method": "Update",
     "RelativePath": "api/Categories/{id}",
     "HttpMethod": "PUT",
@@ -326,7 +493,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "CategoriesController",
+    "ContainingType": "Ecomerce_dotnet.Controllers.CategoriesController",
     "Method": "Delete",
     "RelativePath": "api/Categories/{id}",
     "HttpMethod": "DELETE",
@@ -366,8 +533,33 @@
     "Order": 0,
     "Parameters": [
       {
-        "Name": "status",
+        "Name": "Status",
         "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsDescending",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageSize",
+        "Type": "System.Int32",
         "IsRequired": false
       }
     ],
@@ -453,6 +645,16 @@
         "Name": "search",
         "Type": "System.String",
         "IsRequired": false
+      },
+      {
+        "Name": "pageNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
@@ -487,6 +689,11 @@
       },
       {
         "Name": "CategoryId",
+        "Type": "System.Guid",
+        "IsRequired": false
+      },
+      {
+        "Name": "BrandId",
         "Type": "System.Guid",
         "IsRequired": false
       },
@@ -560,6 +767,116 @@
     "Parameters": [
       {
         "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
+    "Method": "UploadProductImage",
+    "RelativePath": "api/Products/{id}/images",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "File",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsPrimary",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProductVariantId",
+        "Type": "System.Nullable\u00601[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "TargetSku",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
+    "Method": "AddVariantToProduct",
+    "RelativePath": "api/Products/{id}/variants",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.VariantCreateDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
+    "Method": "SetPrimaryImage",
+    "RelativePath": "api/Products/images/{imageId}/set-primary",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "imageId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
+    "Method": "UpdateVariant",
+    "RelativePath": "api/Products/variants/{variantId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "variantId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.ProductVariantUpdateDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
+    "Method": "DeleteVariant",
+    "RelativePath": "api/Products/variants/{variantId}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "variantId",
         "Type": "System.Guid",
         "IsRequired": true
       }

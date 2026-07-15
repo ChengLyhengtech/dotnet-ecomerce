@@ -1,4 +1,4 @@
-﻿namespace Ecomerce_dotnet.DTOs
+namespace Ecomerce_dotnet.DTOs
 {
     public class ProductResponseDto
     {
@@ -13,8 +13,14 @@
         public bool IsDiscounted => DiscountPercentage > 0;
         public int TotalAvailableStock { get; set; }
 
+        // The dynamic field required by the frontend layout!
+        public string Status => TotalAvailableStock > 0 ? "Active" : "Inactive";
+
         public Guid CategoryId { get; set; }
         public string CategoryName { get; set; } = string.Empty;
+
+        public Guid BrandId { get; set; }
+        public string BrandName { get; set; } = string.Empty;
 
         public List<ProductVariantDto> Variants { get; set; } = new();
         public List<ProductImageDto> Images { get; set; } = new();

@@ -11,6 +11,10 @@
         public Guid CategoryId { get; set; }
         public Category? Category { get; set; }
 
+        // NEW: Brand Link (Required Foreign Key)
+        public Guid BrandId { get; set; }
+        public Brand Brand { get; set; } = null!;
+
         // Relationship: One product has many variants (Sizes/Colors)
         public List<ProductVariant> Variants { get; set; } = new();
 

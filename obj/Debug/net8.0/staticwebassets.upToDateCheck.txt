@@ -1,7 +1,0 @@
-wwwroot\uploads\categories\79ee6fc3-deab-46da-90a7-199cd8ee84dd_dfsgasdffasfgasfg.jpg
-wwwroot\uploads\categories\3a8c1239-7945-46cd-ae6f-d7258e7dbf4e_dfsgasdffasfgasfg.jpg
-wwwroot\uploads\banners\b2eb5f08-34ba-45dd-ae2e-2540a3819b52_ewfewfqf.jpg
-wwwroot\uploads\banners\419bff43-3ab3-4268-9876-54a9480b54b5_dfsgasdffasfgasfg.jpg
-wwwroot\uploads\categories\bbe3f03c-f9a6-4ba0-9f51-c92234a8d915_dfsgasdffasfgasfg.jpg
-wwwroot\uploads\products\87cc7fa7-4ea5-49e1-b6d7-daa94fcef53f_covid-2.png
-wwwroot\uploads\products\fee41365-0ec2-4662-a714-58744a1e1fbb_dfsgasdffasfgasfg.jpg
