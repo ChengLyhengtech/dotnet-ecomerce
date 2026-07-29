@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 
 namespace Ecomerce_dotnet.Models
 {
@@ -7,8 +7,11 @@ namespace Ecomerce_dotnet.Models
         public string FullName { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // 2. Add this missing property to fix the controller error!
         public bool IsBanned { get; set; } = false;
+
+        // Refresh Token Persistence
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpiryTime { get; set; }
 
         // Relationship
         public List<Order> Orders { get; set; } = new();

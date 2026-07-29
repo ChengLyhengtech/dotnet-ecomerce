@@ -1,3 +1,8 @@
+using Ecomerce_dotnet.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace Ecomerce_dotnet.DTOs
 {
     public class ProductResponseDto
@@ -22,6 +27,12 @@ namespace Ecomerce_dotnet.DTOs
         public Guid BrandId { get; set; }
         public string BrandName { get; set; } = string.Empty;
 
+        public TargetGender TargetGender { get; set; }
+        public List<string> TargetGenders => Enum.GetValues<TargetGender>()
+            .Where(g => g != TargetGender.None && TargetGender.HasFlag(g))
+            .Select(g => g.ToString())
+            .ToList();
+
         public List<ProductVariantDto> Variants { get; set; } = new();
         public List<ProductImageDto> Images { get; set; } = new();
     }
@@ -40,6 +51,6 @@ namespace Ecomerce_dotnet.DTOs
         public Guid Id { get; set; }
         public string ImageUrl { get; set; } = string.Empty;
         public bool IsPrimary { get; set; }
-        public Guid? ProductVariantId { get; set; }
+        public string? Color { get; set; }
     }
 }

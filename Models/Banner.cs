@@ -1,4 +1,4 @@
-﻿namespace Ecomerce_dotnet.Models
+namespace Ecomerce_dotnet.Models
 {
     public enum BannerPosition
     {
@@ -7,6 +7,7 @@
         CartPageBottom = 3,     // Promotional banner under the shopping cart
         PromotionPopup = 4      // A popup banner for special events
     }
+
     public class Banner
     {
         public Guid Id { get; set; } = Guid.NewGuid();
@@ -14,8 +15,14 @@
         // Highly recommended for admin tracking (e.g., "Black Friday Hero")
         public string Name { get; set; } = string.Empty;
 
-        // The path/S3 URL of the uploaded image file
-        public string ImageUrl { get; set; } = string.Empty;
+        // Wide resolution image URL for Desktop/Laptop viewports (e.g., 1920x600)
+        public string DesktopImageUrl { get; set; } = string.Empty;
+
+        // Portrait/Square resolution image URL optimized for Mobile viewports (e.g., 800x1000)
+        public string MobileImageUrl { get; set; } = string.Empty;
+
+        // Backward compatibility fallback property for legacy API consumers
+        public string ImageUrl => DesktopImageUrl;
 
         // Where the user goes when they click the banner (e.g., "/products?category=shoes")
         public string LinkUrl { get; set; } = string.Empty;

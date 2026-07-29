@@ -1,10 +1,17 @@
-﻿using Ecomerce_dotnet.DTOs;
-using Ecomerce_dotnet.Models;
-using Google.Apis.Auth;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
+using Ecomerce_dotnet.DTOs;
+using Ecomerce_dotnet.Models;
+using Ecomerce_dotnet.Services;
+using Google.Apis.Auth;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 
 namespace Ecomerce_dotnet.Controllers
 {
@@ -13,15 +20,278 @@ namespace Ecomerce_dotnet.Controllers
     public class AuthController : ControllerBase
     {
         private readonly UserManager<User> _userManager;
+        private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly IConfiguration _configuration;
-        // private readonly IJwtTokenService _tokenService; // Inject your future JWT token generator here!
+        private readonly IJwtTokenService _tokenService;
 
-        public AuthController(UserManager<User> userManager, IConfiguration configuration)
+        public AuthController(
+            UserManager<User> userManager,
+            RoleManager<IdentityRole<Guid>> roleManager,
+            IConfiguration configuration,
+            IJwtTokenService tokenService)
         {
             _userManager = userManager;
+            _roleManager = roleManager;
             _configuration = configuration;
+            _tokenService = tokenService;
         }
 
+        // 1. POST: api/auth/register (Registers a user with default 'Customer' role)
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+            if (existingUser != null)
+            {
+                return BadRequest(new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "An account with this email address already exists."
+                });
+            }
+
+            var user = new User
+            {
+                UserName = dto.Email,
+                Email = dto.Email,
+                FullName = dto.FullName.Trim(),
+                EmailConfirmed = true,
+                CreatedAt = DateTime.UtcNow,
+                IsBanned = false
+            };
+
+            var result = await _userManager.CreateAsync(user, dto.Password);
+            if (!result.Succeeded)
+            {
+                var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+                return BadRequest(new AuthResponseDto
+                {
+                    Success = false,
+                    Message = $"Registration failed: {errors}"
+                });
+            }
+
+            // Assign default application role 'Customer'
+            const string defaultRole = "Customer";
+            if (await _roleManager.RoleExistsAsync(defaultRole))
+            {
+                await _userManager.AddToRoleAsync(user, defaultRole);
+            }
+
+            // Generate Access Token and Refresh Token
+            var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            int refreshExpirationDays = int.TryParse(_configuration["JwtSettings:RefreshTokenExpirationDays"], out var days) ? days : 7;
+            var refreshExpiration = DateTime.UtcNow.AddDays(refreshExpirationDays);
+
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = refreshExpiration;
+            await _userManager.UpdateAsync(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return Ok(new AuthResponseDto
+            {
+                Success = true,
+                Message = "Registration successful.",
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                RefreshTokenExpiration = refreshExpiration,
+                User = new UserInfoDto
+                {
+                    Id = user.Id,
+                    Email = user.Email!,
+                    FullName = user.FullName,
+                    Roles = roles.ToList()
+                }
+            });
+        }
+
+        // 2. POST: api/auth/login (Authenticates credentials & returns Tokens)
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var user = await _userManager.FindByEmailAsync(dto.Email);
+            if (user == null)
+            {
+                return Unauthorized(new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Invalid email or password credentials."
+                });
+            }
+
+            if (user.IsBanned)
+            {
+                return StatusCode(403, new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Your account has been suspended by an administrator."
+                });
+            }
+
+            bool isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
+            if (!isPasswordValid)
+            {
+                return Unauthorized(new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Invalid email or password credentials."
+                });
+            }
+
+            // Issue fresh JWT Access Token and Refresh Token
+            var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            int refreshExpirationDays = int.TryParse(_configuration["JwtSettings:RefreshTokenExpirationDays"], out var days) ? days : 7;
+            var refreshExpiration = DateTime.UtcNow.AddDays(refreshExpirationDays);
+
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = refreshExpiration;
+            await _userManager.UpdateAsync(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return Ok(new AuthResponseDto
+            {
+                Success = true,
+                Message = "Login successful.",
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                RefreshTokenExpiration = refreshExpiration,
+                User = new UserInfoDto
+                {
+                    Id = user.Id,
+                    Email = user.Email!,
+                    FullName = user.FullName,
+                    Roles = roles.ToList()
+                }
+            });
+        }
+
+        // 3. POST: api/auth/refresh-token (Rotates Access Token using valid Refresh Token)
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var principal = _tokenService.GetPrincipalFromExpiredToken(dto.AccessToken);
+                if (principal == null)
+                {
+                    return BadRequest(new AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Invalid access token."
+                    });
+                }
+
+                var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                {
+                    return BadRequest(new AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Invalid token payload identity."
+                    });
+                }
+
+                var user = await _userManager.FindByIdAsync(userId.ToString());
+                if (user == null || user.RefreshToken != dto.RefreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+                {
+                    return BadRequest(new AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Invalid or expired refresh token. Please login again."
+                    });
+                }
+
+                if (user.IsBanned)
+                {
+                    return StatusCode(403, new AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Your account has been suspended."
+                    });
+                }
+
+                // Issue rotated token pair
+                var newAccessToken = await _tokenService.GenerateAccessTokenAsync(user);
+                var newRefreshToken = _tokenService.GenerateRefreshToken();
+
+                int refreshExpirationDays = int.TryParse(_configuration["JwtSettings:RefreshTokenExpirationDays"], out var days) ? days : 7;
+                var refreshExpiration = DateTime.UtcNow.AddDays(refreshExpirationDays);
+
+                user.RefreshToken = newRefreshToken;
+                user.RefreshTokenExpiryTime = refreshExpiration;
+                await _userManager.UpdateAsync(user);
+
+                var roles = await _userManager.GetRolesAsync(user);
+
+                return Ok(new AuthResponseDto
+                {
+                    Success = true,
+                    Message = "Token refreshed successfully.",
+                    AccessToken = newAccessToken,
+                    RefreshToken = newRefreshToken,
+                    RefreshTokenExpiration = refreshExpiration,
+                    User = new UserInfoDto
+                    {
+                        Id = user.Id,
+                        Email = user.Email!,
+                        FullName = user.FullName,
+                        Roles = roles.ToList()
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new AuthResponseDto
+                {
+                    Success = false,
+                    Message = $"Token refresh error: {ex.Message}"
+                });
+            }
+        }
+
+        // 4. POST: api/auth/revoke-token (Revokes user refresh token session)
+        [Authorize]
+        [HttpPost("revoke-token")]
+        public async Task<IActionResult> RevokeToken()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return NotFound("User not found.");
+
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+            await _userManager.UpdateAsync(user);
+
+            return Ok(new { success = true, message = "Refresh token revoked successfully." });
+        }
+
+        // 5. POST: api/auth/google-login
         [HttpPost("google-login")]
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
         {
@@ -29,81 +299,86 @@ namespace Ecomerce_dotnet.Controllers
 
             try
             {
-                // 1. Validate the token against Google's public keys to ensure it's authentic and not forged
-                payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, new GoogleJsonWebSignature.ValidationSettings
-                {
-                    // Highly recommended: Put your Google Client ID here to ensure the token was meant for YOUR app
-                    // Audience = new[] { "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com" }
-                });
+                payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, new GoogleJsonWebSignature.ValidationSettings());
             }
             catch (InvalidJwtException)
             {
                 return BadRequest("Invalid Google token.");
             }
 
-            // 2. Look up the user in your AspNetUsers database using the email verified by Google
             var user = await _userManager.FindByEmailAsync(payload.Email);
 
             if (user == null)
             {
-                // 3. Register Flow: If the user doesn't exist, instantly register them!
                 user = new User
                 {
                     UserName = payload.Email,
                     Email = payload.Email,
-                    FullName = payload.Name, // Pulls name directly from Google account
-                    EmailConfirmed = true,    // Google already verified this email
+                    FullName = payload.Name,
+                    EmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow,
                     IsBanned = false
                 };
 
                 var createResult = await _userManager.CreateAsync(user);
                 if (!createResult.Succeeded)
-                    return BadRequest("Failed to automatically create user account.");
+                    return BadRequest("Failed to create user account from Google provider.");
 
-                // Assign default role
                 await _userManager.AddToRoleAsync(user, "Customer");
             }
 
-            // 4. Check if Admin has banned them before generating tokens
             if (user.IsBanned)
             {
-                return Forbid("Your account has been suspended.");
+                return StatusCode(403, "Your account has been suspended.");
             }
 
-            // 5. Generate your own system JWT token here!
-            // var appToken = _tokenService.GenerateToken(user);
+            var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
 
-            return Ok(new
+            int refreshExpirationDays = int.TryParse(_configuration["JwtSettings:RefreshTokenExpirationDays"], out var days) ? days : 7;
+            var refreshExpiration = DateTime.UtcNow.AddDays(refreshExpirationDays);
+
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = refreshExpiration;
+            await _userManager.UpdateAsync(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return Ok(new AuthResponseDto
             {
-                message = "Login successful",
-                email = user.Email,
-                fullName = user.FullName,
-                // token = appToken // Send this back to frontend to save in localStorage
+                Success = true,
+                Message = "Google login successful.",
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                RefreshTokenExpiration = refreshExpiration,
+                User = new UserInfoDto
+                {
+                    Id = user.Id,
+                    Email = user.Email!,
+                    FullName = user.FullName,
+                    Roles = roles.ToList()
+                }
             });
         }
 
+        // 6. POST: api/auth/telegram-login
         [HttpPost("telegram-login")]
         public async Task<IActionResult> TelegramLogin([FromBody] TelegramLoginDto dto)
         {
-            // 1. Get the Bot Token from your configuration settings
-            string botToken = _configuration["Telegram:BotToken"];
+            string botToken = _configuration["Telegram:BotToken"] ?? string.Empty;
 
             if (string.IsNullOrEmpty(botToken))
                 return StatusCode(500, "Telegram Bot Token is not configured on the server.");
 
-            // 2. Validate the Cryptographic Signature from Telegram
             if (!VerifyTelegramHash(dto, botToken))
             {
                 return BadRequest("Invalid Telegram security signature hash validation failed.");
             }
 
-            // 3. Optional: Check if the authentication timestamp is older than 24 hours to prevent replay attacks
             var timeSpan = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - dto.Auth_Date;
             if (timeSpan > 86400)
                 return BadRequest("Authentication token session has expired.");
 
-            // 4. Look up user by unique username or generate a deterministic dummy email format
             string syntheticEmail = dto.Username != null
                 ? $"{dto.Username.ToLower()}@telegram.com"
                 : $"{dto.Id}@telegram.com";
@@ -112,7 +387,6 @@ namespace Ecomerce_dotnet.Controllers
 
             if (user == null)
             {
-                // Auto-Register user seamlessly
                 user = new User
                 {
                     UserName = syntheticEmail,
@@ -132,22 +406,40 @@ namespace Ecomerce_dotnet.Controllers
 
             if (user.IsBanned)
             {
-                return Forbid("Your account has been suspended.");
+                return StatusCode(403, "Your account has been suspended.");
             }
 
-            // Generate your own system JWT token here!
-            return Ok(new
+            var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            int refreshExpirationDays = int.TryParse(_configuration["JwtSettings:RefreshTokenExpirationDays"], out var days) ? days : 7;
+            var refreshExpiration = DateTime.UtcNow.AddDays(refreshExpirationDays);
+
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = refreshExpiration;
+            await _userManager.UpdateAsync(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return Ok(new AuthResponseDto
             {
-                message = "Login successful via Telegram",
-                email = user.Email,
-                fullName = user.FullName
+                Success = true,
+                Message = "Telegram login successful.",
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                RefreshTokenExpiration = refreshExpiration,
+                User = new UserInfoDto
+                {
+                    Id = user.Id,
+                    Email = user.Email!,
+                    FullName = user.FullName,
+                    Roles = roles.ToList()
+                }
             });
         }
 
-        // Helper Method: Implements Telegram's official validation specification algorithm
         private bool VerifyTelegramHash(TelegramLoginDto dto, string token)
         {
-            // Gather incoming parameters into an alphabetically ordered dictionary mapping
             var dataFields = new SortedDictionary<string, string>
             {
                 { "auth_date", dto.Auth_Date.ToString() },
@@ -159,26 +451,21 @@ namespace Ecomerce_dotnet.Controllers
             if (!string.IsNullOrEmpty(dto.Username)) dataFields.Add("username", dto.Username);
             if (!string.IsNullOrEmpty(dto.Photo_Url)) dataFields.Add("photo_url", dto.Photo_Url);
 
-            // Construct the check-string stringified schema separated by newlines (\n)
             string dataCheckString = string.Join("\n", dataFields.Select(x => $"{x.Key}={x.Value}"));
 
-            // Step A: Hash the Bot Token using standard SHA256
             byte[] secretKey;
             using (var sha256 = SHA256.Create())
             {
                 secretKey = sha256.ComputeHash(Encoding.UTF8.GetBytes(token));
             }
 
-            // Step B: Calculate the HMAC-SHA256 signature using the secret key computed above
             using (var hmac = new HMACSHA256(secretKey))
             {
                 byte[] computedSignatureBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(dataCheckString));
                 string computedHashString = BitConverter.ToString(computedSignatureBytes).Replace("-", "").ToLower();
 
-                // Compare computed hexadecimal result with the received value parameter
                 return computedHashString == dto.Hash.ToLower();
             }
         }
     }
 }
-

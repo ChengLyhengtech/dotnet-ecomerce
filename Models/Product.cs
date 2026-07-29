@@ -1,4 +1,4 @@
-﻿namespace Ecomerce_dotnet.Models
+namespace Ecomerce_dotnet.Models
 {
     public class Product
     {
@@ -17,6 +17,9 @@
 
         // Relationship: One product has many variants (Sizes/Colors)
         public List<ProductVariant> Variants { get; set; } = new();
+
+        // Target Demographic Bitwise Flags (e.g. Women | Girls)
+        public TargetGender TargetGender { get; set; } = TargetGender.Unisex;
 
         public bool IsDeleted { get; set; } = false; // Soft delete
     }

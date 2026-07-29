@@ -25,6 +25,8 @@ namespace Ecomerce_dotnet.Data
         public DbSet<Brand> Brands { get; set; } 
         public DbSet<Cart> Carts { get; set; }
         public DbSet<StockMovement> StockMovements { get; set; }
+        public DbSet<ReturnRequest> ReturnRequests { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -60,10 +62,78 @@ namespace Ecomerce_dotnet.Data
                 .HasMaxLength(50);
 
             modelBuilder.Entity<StockMovement>()
+                .Property(sm => sm.ReasonCode)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<StockMovement>()
+                .Property(sm => sm.ReferenceId)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<StockMovement>()
+                .Property(sm => sm.Notes)
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<StockMovement>()
                 .HasOne(sm => sm.ProductVariant)
                 .WithMany()
                 .HasForeignKey(sm => sm.ProductVariantId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // 5. Configure ReturnRequest mappings
+            modelBuilder.Entity<ReturnRequest>()
+                .Property(rr => rr.CustomerReason)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            modelBuilder.Entity<ReturnRequest>()
+                .Property(rr => rr.CustomerNotes)
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<ReturnRequest>()
+                .Property(rr => rr.AdminNotes)
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<ReturnRequest>()
+                .Property(rr => rr.Status)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            // 6. Configure ProductImage index for fast color-based image lookups
+            modelBuilder.Entity<ProductImage>()
+                .HasIndex(pi => new { pi.ProductId, pi.Color });
+
+            modelBuilder.Entity<ReturnRequest>()
+                .HasOne(rr => rr.Order)
+                .WithMany()
+                .HasForeignKey(rr => rr.OrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ReturnRequest>()
+                .HasOne(rr => rr.ProductVariant)
+                .WithMany()
+                .HasForeignKey(rr => rr.ProductVariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // 6. Configure Notification mappings
+            modelBuilder.Entity<Notification>()
+                .Property(n => n.Title)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<Notification>()
+                .Property(n => n.Message)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<Notification>()
+                .Property(n => n.Type)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            modelBuilder.Entity<Notification>()
+                .Property(n => n.TargetUrl)
+                .HasMaxLength(250);
         }
     }
 }

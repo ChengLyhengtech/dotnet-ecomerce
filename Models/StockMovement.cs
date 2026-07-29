@@ -15,6 +15,12 @@ namespace Ecomerce_dotnet.Models
         
         public string ChangedBy { get; set; } = "System";
         
+        public string ReasonCode { get; set; } = string.Empty;
+        
+        public string? ReferenceId { get; set; }
+        
+        public string? Notes { get; set; }
+        
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

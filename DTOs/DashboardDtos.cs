@@ -6,8 +6,12 @@ namespace Ecomerce_dotnet.DTOs
     public class DashboardSummaryDto
     {
         public FinancialsDto Financials { get; set; } = new();
+        public int TotalUserCount { get; set; }
         public List<InventoryAlertDto> InventoryAlerts { get; set; } = new();
         public List<GeospatialLogisticsDto> GeospatialLogistics { get; set; } = new();
+        public List<TopPerformerDto> TopProducts { get; set; } = new();
+        public List<TopPerformerDto> TopBrands { get; set; } = new();
+        public List<TopPerformerDto> TopCategories { get; set; } = new();
     }
 
     public class FinancialsDto
@@ -15,6 +19,14 @@ namespace Ecomerce_dotnet.DTOs
         public decimal GrossRevenue { get; set; }
         public int TotalOrders { get; set; }
         public decimal AverageOrderValue { get; set; }
+    }
+
+    public class TopPerformerDto
+    {
+        public Guid? Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int TotalQuantitySold { get; set; }
+        public decimal TotalRevenue { get; set; }
     }
 
     public class InventoryAlertDto

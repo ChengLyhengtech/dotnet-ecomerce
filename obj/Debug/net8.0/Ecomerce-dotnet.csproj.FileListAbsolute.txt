@@ -160,3 +160,4 @@ D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\obj\Debug\net
 D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\RESPite.dll
 D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\System.IO.Hashing.dll
 D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\bin\Debug\net8.0\System.IO.Pipelines.dll
+D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,75 +17,103 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // Replaces the broken placeholder with the binary array target handler
     options.OperationFilter<SwaggerFileArrayFilter>();
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter 'Bearer' [space] and then your valid JWT token."
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
-// 1. Add Identity Services
+// Add Identity Services
 builder.Services.AddIdentity<User, IdentityRole<Guid>>(options => {
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// Add services to the container.
+// Application Services
 builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
-// 1. ADD THE CORS POLICY (Put this BEFORE builder.Build())
+// CORS Policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontendOnly", policy =>
     {
-        policy.WithOrigins("http://localhost:4200") // Replace with your frontend URL if different
+        policy.WithOrigins("http://localhost:4200", "http://localhost:3000", "http://localhost:5173", "https://clh168-eccommerce.vercel.app")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
-// Redis Catch
+// Redis Cache
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    // If running locally, this is usually "localhost:6379"
     options.Configuration = builder.Configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
     options.InstanceName = "Ecom_";
 });
 
-
-// Add the background service to the container
+// Background Services & SignalR
 builder.Services.AddHostedService<OrderExpiryWorker>();
 builder.Services.AddSingleton<BakongQrService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();
 
-// 2. Add JWT Authentication
+// JWT Authentication Scheme Configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]!);
+var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 
 builder.Services.AddAuthentication(options => {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options => {
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        ValidateAudience = false
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"],
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
     };
 });
 
 var app = builder.Build();
-// This line MUST be here to serve files from wwwroot!
-// 2. ACTIVATE THE CORS MIDDLEWARE (Put this AFTER app.UseRouting() but BEFORE app.MapControllers())
+
 app.UseCors("AllowFrontendOnly");
 app.UseStaticFiles();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -92,28 +121,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-// 3. Enable Auth Middleware (Order matters!)
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<OrderHub>("/orderHub");
+app.MapHub<NotificationHub>("/hubs/notifications");
 
-using (var scope = app.Services.CreateScope())
-{
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-
-    // Define the application roles you need
-    string[] roles = { "Admin", "Manager", "Customer" };
-
-    foreach (var roleName in roles)
-    {
-        // If the role doesn't exist in AspNetRoles, create it
-        if (!await roleManager.RoleExistsAsync(roleName))
-        {
-            await roleManager.CreateAsync(new IdentityRole<Guid> { Name = roleName });
-        }
-    }
-}
+// Seed Database Roles and Initial Admin & Manager Accounts
+await DbSeeder.SeedAsync(app.Services);
 
 app.Run();

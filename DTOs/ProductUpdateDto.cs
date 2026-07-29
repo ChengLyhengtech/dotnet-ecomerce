@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
+using Ecomerce_dotnet.Models;
 
 namespace Ecomerce_dotnet.DTOs
 {
@@ -22,5 +23,7 @@ namespace Ecomerce_dotnet.DTOs
 
         [Required]
         public Guid BrandId { get; set; }
+
+        public TargetGender TargetGender { get; set; } = TargetGender.Unisex;
     }
 }

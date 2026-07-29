@@ -1,10 +1,16 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
 using Ecomerce_dotnet.Data;
 using Ecomerce_dotnet.DTOs;
 using Ecomerce_dotnet.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
-using System.Text.Json;
 
 namespace Ecomerce_dotnet.Controllers
 {
@@ -15,6 +21,8 @@ namespace Ecomerce_dotnet.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IFileService _fileService;
         private readonly IDistributedCache _cache;
+
+        private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
 
         public BannersController(ApplicationDbContext context, IFileService fileService, IDistributedCache cache)
         {
@@ -30,10 +38,7 @@ namespace Ecomerce_dotnet.Controllers
             [FromQuery] bool? isActive,
             [FromQuery] BannerPosition? position)
         {
-            // Create a dynamic cache key based on the query parameters so filters don't conflict
-            string cacheKey = $"banners:active={isActive?.ToString() ?? "all"}:pos={position?.ToString() ?? "all"}";
-
-            // Attempt to fetch from Redis matrix
+            string cacheKey = GetCacheKey(isActive, position);
             string? cachedBanners = await _cache.GetStringAsync(cacheKey);
 
             if (!string.IsNullOrEmpty(cachedBanners))
@@ -42,7 +47,6 @@ namespace Ecomerce_dotnet.Controllers
                 return Ok(deserializedBanners);
             }
 
-            // Cache miss - query the database
             var query = _context.Banners.AsQueryable();
 
             if (isActive.HasValue)
@@ -60,7 +64,6 @@ namespace Ecomerce_dotnet.Controllers
                 .ThenBy(b => b.SortOrder)
                 .ToListAsync();
 
-            // Store result in Redis with a sliding expiration (e.g., 1 hour)
             var cacheOptions = new DistributedCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1),
@@ -83,55 +86,96 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(banner);
         }
 
-        // 2. ADMIN ENDPOINT: Create a banner with image upload
+        // 2. ADMIN ENDPOINT: Create a banner with dual Desktop & Mobile image uploads
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] BannerCreateDto dto)
         {
-            if (dto.ImageFile == null || dto.ImageFile.Length == 0)
-                return BadRequest("An image file is required.");
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            string imageUrl = await _fileService.SaveFileAsync(dto.ImageFile, "banners");
+            if (dto.DesktopImage == null || dto.DesktopImage.Length == 0)
+                return BadRequest(new { message = "Desktop banner image file is required." });
+
+            if (dto.MobileImage == null || dto.MobileImage.Length == 0)
+                return BadRequest(new { message = "Mobile banner image file is required." });
+
+            if (!IsValidImageExtension(dto.DesktopImage))
+            {
+                return BadRequest(new { message = $"Invalid Desktop image extension. Allowed types: {string.Join(", ", AllowedExtensions)}" });
+            }
+
+            if (!IsValidImageExtension(dto.MobileImage))
+            {
+                return BadRequest(new { message = $"Invalid Mobile image extension. Allowed types: {string.Join(", ", AllowedExtensions)}" });
+            }
+
+            string desktopImageUrl = await _fileService.SaveFileAsync(dto.DesktopImage, "banners");
+            string mobileImageUrl = await _fileService.SaveFileAsync(dto.MobileImage, "banners");
 
             var banner = new Banner
             {
-                Name = dto.Name,
-                LinkUrl = dto.LinkUrl,
+                Name = dto.Name.Trim(),
+                LinkUrl = dto.LinkUrl.Trim(),
                 Position = dto.Position,
                 SortOrder = dto.SortOrder,
-                ImageUrl = imageUrl,
+                DesktopImageUrl = desktopImageUrl,
+                MobileImageUrl = mobileImageUrl,
                 IsActive = true
             };
 
             _context.Banners.Add(banner);
             await _context.SaveChangesAsync();
 
-            // Evict all potential banner combinations to ensure cache consistency
             await ClearBannerCacheAsync();
 
-            return CreatedAtAction(nameof(GetBanners), new { id = banner.Id }, banner);
+            return CreatedAtAction(nameof(GetById), new { id = banner.Id }, banner);
         }
 
-        // 4. UPDATE (PUT /api/banners/{id})
-        [HttpPut("{id}")]
+        // 3. UPDATE (PUT /api/banners/{id})
+        [HttpPut("{id:guid}")]
         public async Task<IActionResult> Update(Guid id, [FromForm] BannerUpdateDto dto)
         {
             var banner = await _context.Banners.FindAsync(id);
             if (banner == null) return NotFound("Banner campaign not found.");
 
-            banner.Name = dto.Name;
-            banner.LinkUrl = dto.LinkUrl;
+            banner.Name = dto.Name.Trim();
+            banner.LinkUrl = dto.LinkUrl.Trim();
             banner.Position = dto.Position;
             banner.SortOrder = dto.SortOrder;
             banner.IsActive = dto.IsActive;
 
-            if (dto.ImageFile != null && dto.ImageFile.Length > 0)
+            // Process optional Desktop Image update
+            if (dto.DesktopImage != null && dto.DesktopImage.Length > 0)
             {
-                // Ensure your FileService safely handles missing/null physical paths
-                if (!string.IsNullOrEmpty(banner.ImageUrl))
+                if (!IsValidImageExtension(dto.DesktopImage))
                 {
-                    _fileService.DeletePhysicalFile(banner.ImageUrl);
+                    return BadRequest(new { message = $"Invalid Desktop image extension. Allowed types: {string.Join(", ", AllowedExtensions)}" });
                 }
-                banner.ImageUrl = await _fileService.SaveFileAsync(dto.ImageFile, "banners");
+
+                if (!string.IsNullOrEmpty(banner.DesktopImageUrl))
+                {
+                    _fileService.DeletePhysicalFile(banner.DesktopImageUrl);
+                }
+
+                banner.DesktopImageUrl = await _fileService.SaveFileAsync(dto.DesktopImage, "banners");
+            }
+
+            // Process optional Mobile Image update
+            if (dto.MobileImage != null && dto.MobileImage.Length > 0)
+            {
+                if (!IsValidImageExtension(dto.MobileImage))
+                {
+                    return BadRequest(new { message = $"Invalid Mobile image extension. Allowed types: {string.Join(", ", AllowedExtensions)}" });
+                }
+
+                if (!string.IsNullOrEmpty(banner.MobileImageUrl))
+                {
+                    _fileService.DeletePhysicalFile(banner.MobileImageUrl);
+                }
+
+                banner.MobileImageUrl = await _fileService.SaveFileAsync(dto.MobileImage, "banners");
             }
 
             _context.Entry(banner).State = EntityState.Modified;
@@ -142,8 +186,8 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(banner);
         }
 
-        // 5. PATCH /api/banners/{id}/toggle-active
-        [HttpPatch("{id}/toggle-active")]
+        // 4. PATCH /api/banners/{id}/toggle-active
+        [HttpPatch("{id:guid}/toggle-active")]
         public async Task<IActionResult> ToggleActive(Guid id)
         {
             var banner = await _context.Banners.FindAsync(id);
@@ -169,16 +213,21 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(new { message = $"Banner campaign '{banner.Name}' status shifted to {(banner.IsActive ? "Active" : "Inactive")}.", isActive = banner.IsActive });
         }
 
-        // 3. ADMIN ENDPOINT: Delete banner & clean up physical file
+        // 5. ADMIN ENDPOINT: Delete banner & clean up physical files
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var banner = await _context.Banners.FindAsync(id);
             if (banner == null) return NotFound();
 
-            if (!string.IsNullOrEmpty(banner.ImageUrl))
+            if (!string.IsNullOrEmpty(banner.DesktopImageUrl))
             {
-                _fileService.DeletePhysicalFile(banner.ImageUrl);
+                _fileService.DeletePhysicalFile(banner.DesktopImageUrl);
+            }
+
+            if (!string.IsNullOrEmpty(banner.MobileImageUrl))
+            {
+                _fileService.DeletePhysicalFile(banner.MobileImageUrl);
             }
 
             _context.Banners.Remove(banner);
@@ -189,26 +238,35 @@ namespace Ecomerce_dotnet.Controllers
             return NoContent();
         }
 
-        // Helper method to completely purge related banner caches whenever modifications happen
+        private static bool IsValidImageExtension(IFormFile file)
+        {
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            return !string.IsNullOrEmpty(extension) && AllowedExtensions.Contains(extension);
+        }
+
+        private static string GetCacheKey(bool? isActive, BannerPosition? position)
+        {
+            string activeKey = isActive.HasValue ? isActive.Value.ToString().ToLower() : "all";
+            string posKey = position.HasValue ? position.Value.ToString().ToLower() : "all";
+            return $"banners:active={activeKey}:pos={posKey}";
+        }
+
         private async Task ClearBannerCacheAsync()
         {
-            // Because Redis IDistributedCache doesn't natively support wildcards (like "banners:*") 
-            // without custom Lua scripts or scanning keys, we explicitly target the most common variations 
-            // used by your system to keep performance swift and clean.
             var positions = Enum.GetValues<BannerPosition>();
 
             var keysToRemove = new List<string>
             {
-                "banners:active=all:pos=all",
-                "banners:active=true:pos=all",
-                "banners:active=false:pos=all"
+                GetCacheKey(null, null),
+                GetCacheKey(true, null),
+                GetCacheKey(false, null)
             };
 
             foreach (var pos in positions)
             {
-                keysToRemove.Add($"banners:active=all:pos={pos}");
-                keysToRemove.Add($"banners:active=true:pos={pos}");
-                keysToRemove.Add($"banners:active=false:pos={pos}");
+                keysToRemove.Add(GetCacheKey(null, pos));
+                keysToRemove.Add(GetCacheKey(true, pos));
+                keysToRemove.Add(GetCacheKey(false, pos));
             }
 
             var tasks = keysToRemove.Select(key => _cache.RemoveAsync(key));

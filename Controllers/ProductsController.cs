@@ -24,12 +24,16 @@ namespace Ecomerce_dotnet.Controllers
             _cache = cache;
         }
 
-        // 1. GET: api/products (Catalog view with dynamic filters, Pagination, and Redis Caching)
+        // 1. GET: api/products (Catalog view with dynamic filters, Pagination, Price Range, Brand, and Redis Caching)
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] Guid? categoryId,
+            [FromQuery] Guid? brandId,
             [FromQuery] bool? hasDiscount,
             [FromQuery] string? search,
+            [FromQuery] decimal? minPrice,
+            [FromQuery] decimal? maxPrice,
+            [FromQuery] TargetGender? targetGender,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
@@ -37,8 +41,8 @@ namespace Ecomerce_dotnet.Controllers
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1 || pageSize > 50) pageSize = 10; // Guard against pulling too many items at once
 
-            // Step 1: Append pagination signatures explicitly into the unique cache key structure
-            string cacheKey = $"products:cat={categoryId}:disc={hasDiscount}:q={search?.Trim().ToLower()}:p={pageNumber}:sz={pageSize}";
+            // Step 1: Append pagination, price, brand, and gender signatures explicitly into the unique cache key structure
+            string cacheKey = $"products:cat={categoryId}:brand={brandId}:disc={hasDiscount}:q={search?.Trim().ToLower()}:minp={minPrice}:maxp={maxPrice}:gen={targetGender}:p={pageNumber}:sz={pageSize}";
 
             // Step 2: Try to get data from Redis
             var cachedProductsJson = await _cache.GetStringAsync(cacheKey);
@@ -66,6 +70,11 @@ namespace Ecomerce_dotnet.Controllers
                 query = query.Where(p => p.CategoryId == categoryId.Value);
             }
 
+            if (brandId.HasValue)
+            {
+                query = query.Where(p => p.BrandId == brandId.Value);
+            }
+
             if (hasDiscount.HasValue && hasDiscount.Value)
             {
                 query = query.Where(p => p.DiscountPercentage > 0);
@@ -76,6 +85,22 @@ namespace Ecomerce_dotnet.Controllers
                 var lowerSearch = search.ToLower();
                 query = query.Where(p => p.Name.ToLower().Contains(lowerSearch) ||
                                      p.Description.ToLower().Contains(lowerSearch));
+            }
+
+            if (minPrice.HasValue)
+            {
+                query = query.Where(p => (p.BasePrice * (1 - (p.DiscountPercentage / 100m))) >= minPrice.Value);
+            }
+
+            if (maxPrice.HasValue)
+            {
+                query = query.Where(p => (p.BasePrice * (1 - (p.DiscountPercentage / 100m))) <= maxPrice.Value);
+            }
+
+            // Bitwise Flag Filtering for Multi-Demographic Targeting
+            if (targetGender.HasValue && targetGender.Value != TargetGender.None)
+            {
+                query = query.Where(p => (p.TargetGender & targetGender.Value) != 0);
             }
 
             // Step A: Capture total matching record count BEFORE pulling subset items from SQL Server
@@ -106,6 +131,7 @@ namespace Ecomerce_dotnet.Controllers
                 CategoryName = p.Category?.Name ?? "Unknown",
                 BrandId = p.BrandId,
                 BrandName = p.Brand?.Name ?? "Unknown",
+                TargetGender = p.TargetGender,
                 TotalAvailableStock = p.Variants.Sum(v => v.PhysicalQuantity - v.ReservedQuantity),
                 Variants = p.Variants.Select(v => new ProductVariantDto
                 {
@@ -120,7 +146,7 @@ namespace Ecomerce_dotnet.Controllers
                     Id = img.Id,
                     ImageUrl = img.ImageUrl,
                     IsPrimary = img.IsPrimary,
-                    ProductVariantId = img.ProductVariantId
+                    Color = img.Color
                 }).ToList()
             }).ToList();
 
@@ -147,7 +173,138 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(response);
         }
 
-        // 2. GET: api/products/{id} (Detailed product view)
+        // 2. GET: api/products/under-price?price=20 (Products under specific price threshold, defaults to $20)
+        [HttpGet("under-price")]
+        public async Task<IActionResult> GetUnderPrice(
+            [FromQuery] decimal price = 20m,
+            [FromQuery] TargetGender? targetGender = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            return await GetAll(
+                categoryId: null,
+                brandId: null,
+                hasDiscount: null,
+                search: null,
+                minPrice: null,
+                maxPrice: price,
+                targetGender: targetGender,
+                pageNumber: pageNumber,
+                pageSize: pageSize);
+        }
+
+        // 3. GET: api/products/top-selling?count=10 (Top N most sold products)
+        [HttpGet("top-selling")]
+        public async Task<IActionResult> GetTopSelling([FromQuery] int count = 10)
+        {
+            if (count < 1 || count > 50) count = 10;
+
+            string cacheKey = $"products:top-selling:count={count}";
+
+            var cachedProductsJson = await _cache.GetStringAsync(cacheKey);
+
+            if (!string.IsNullOrEmpty(cachedProductsJson))
+            {
+                var cachedResponse = JsonSerializer.Deserialize<List<ProductResponseDto>>(cachedProductsJson);
+                return Ok(cachedResponse);
+            }
+
+            // Step 1: Group valid OrderItems by ProductId to rank by total quantity sold
+            var topSalesGrouped = await _context.OrderItems
+                .Where(oi => oi.Order != null 
+                    && oi.Order.Status != "Pending" 
+                    && oi.Order.Status != "Cancelled" 
+                    && oi.ProductVariant != null 
+                    && oi.ProductVariant.Product != null 
+                    && !oi.ProductVariant.Product.IsDeleted)
+                .GroupBy(oi => oi.ProductVariant!.ProductId)
+                .Select(g => new
+                {
+                    ProductId = g.Key,
+                    TotalQuantitySold = g.Sum(x => x.Quantity)
+                })
+                .OrderByDescending(x => x.TotalQuantitySold)
+                .Take(count)
+                .ToListAsync();
+
+            var topProductIds = topSalesGrouped.Select(x => x.ProductId).ToList();
+
+            // Step 2: If fewer orders exist than count requested, backfill with active products
+            if (topProductIds.Count < count)
+            {
+                var remainingCount = count - topProductIds.Count;
+                var fallbackIds = await _context.Products
+                    .Where(p => !p.IsDeleted && !topProductIds.Contains(p.Id))
+                    .OrderByDescending(p => p.Id)
+                    .Take(remainingCount)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+
+                topProductIds.AddRange(fallbackIds);
+            }
+
+            // Step 3: Fetch full entities with Category, Brand, and Variants
+            var products = await _context.Products
+                .Include(p => p.Category)
+                .Include(p => p.Brand)
+                .Include(p => p.Variants)
+                .Where(p => topProductIds.Contains(p.Id) && !p.IsDeleted)
+                .ToListAsync();
+
+            // Maintain top-selling rank ordering
+            var orderedProducts = topProductIds
+                .Select(id => products.FirstOrDefault(p => p.Id == id))
+                .Where(p => p != null)
+                .Cast<Product>()
+                .ToList();
+
+            var productIds = orderedProducts.Select(p => p.Id).ToList();
+            var images = await _context.ProductImages
+                .Where(img => productIds.Contains(img.ProductId))
+                .ToListAsync();
+
+            var resultDtos = orderedProducts.Select(p => new ProductResponseDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Description = p.Description,
+                BasePrice = p.BasePrice,
+                DiscountPercentage = p.DiscountPercentage,
+                CategoryId = p.CategoryId,
+                CategoryName = p.Category?.Name ?? "Unknown",
+                BrandId = p.BrandId,
+                BrandName = p.Brand?.Name ?? "Unknown",
+                TargetGender = p.TargetGender,
+                TotalAvailableStock = p.Variants.Sum(v => v.PhysicalQuantity - v.ReservedQuantity),
+                Variants = p.Variants.Select(v => new ProductVariantDto
+                {
+                    Id = v.Id,
+                    Color = v.Color,
+                    Size = v.Size,
+                    AvailableStock = Math.Max(0, v.PhysicalQuantity - v.ReservedQuantity),
+                    Sku = v.Sku
+                }).ToList(),
+                Images = images.Where(img => img.ProductId == p.Id).Select(img => new ProductImageDto
+                {
+                    Id = img.Id,
+                    ImageUrl = img.ImageUrl,
+                    IsPrimary = img.IsPrimary,
+                    Color = img.Color
+                }).ToList()
+            }).ToList();
+
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5),
+                SlidingExpiration = TimeSpan.FromMinutes(2)
+            };
+
+            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(resultDtos), cacheOptions);
+
+            return Ok(resultDtos);
+        }
+
+        // 4. GET: api/products/{id} (Detailed product view)
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
@@ -177,6 +334,7 @@ namespace Ecomerce_dotnet.Controllers
                 CategoryName = product.Category?.Name ?? "Unknown",
                 BrandId = product.BrandId,
                 BrandName = product.Brand?.Name ?? "Unknown",
+                TargetGender = product.TargetGender,
                 TotalAvailableStock = product.Variants.Sum(v => v.PhysicalQuantity - v.ReservedQuantity),
                 Variants = product.Variants.Select(v => new ProductVariantDto
                 {
@@ -191,7 +349,7 @@ namespace Ecomerce_dotnet.Controllers
                     Id = img.Id,
                     ImageUrl = img.ImageUrl,
                     IsPrimary = img.IsPrimary,
-                    ProductVariantId = img.ProductVariantId
+                    Color = img.Color
                 }).ToList()
             };
 
@@ -209,15 +367,49 @@ namespace Ecomerce_dotnet.Controllers
                 return BadRequest("The provided CategoryId does not exist.");
             }
 
-            // 2. NEW: Relational Integrity Guard: Validate Brand Manufacturer exists
             var brandExists = await _context.Brands.AnyAsync(b => b.Id == dto.BrandId);
             if (!brandExists)
             {
                 return BadRequest("The provided BrandId does not exist in the database system catalog.");
             }
 
-            var incomingSkus = dto.Variants.Select(v => v.Sku).ToList();
-            if (incomingSkus.Count != incomingSkus.Distinct().Count())
+            // Extract incoming variant definitions from ColorGroups (or fallback Variants if ColorGroups is empty)
+            var variantsToCreate = new List<(string Color, string Size, int Quantity, string Sku)>();
+
+            if (dto.ColorGroups != null && dto.ColorGroups.Any())
+            {
+                foreach (var group in dto.ColorGroups)
+                {
+                    if (string.IsNullOrWhiteSpace(group.Color))
+                        return BadRequest("Each ColorGroup must specify a valid Color name.");
+
+                    foreach (var sizeItem in group.Sizes)
+                    {
+                        if (string.IsNullOrWhiteSpace(sizeItem.Size))
+                            return BadRequest($"Size is required for color group '{group.Color}'.");
+
+                        string finalSku = !string.IsNullOrWhiteSpace(sizeItem.Sku)
+                            ? sizeItem.Sku.Trim()
+                            : $"{dto.Name.Replace(" ", "-")}-{group.Color}-{sizeItem.Size}".ToUpper();
+
+                        variantsToCreate.Add((group.Color.Trim(), sizeItem.Size.Trim(), sizeItem.PhysicalQuantity, finalSku));
+                    }
+                }
+            }
+            else if (dto.Variants != null && dto.Variants.Any())
+            {
+                foreach (var vDto in dto.Variants)
+                {
+                    variantsToCreate.Add((vDto.Color.Trim(), vDto.Size.Trim(), vDto.InitialPhysicalQuantity, vDto.Sku.Trim()));
+                }
+            }
+            else
+            {
+                return BadRequest("Product must contain at least one color group or variant option.");
+            }
+
+            var incomingSkus = variantsToCreate.Select(v => v.Sku).ToList();
+            if (incomingSkus.Count != incomingSkus.Distinct(StringComparer.OrdinalIgnoreCase).Count())
             {
                 return BadRequest("Duplicate SKUs detected within the request payload.");
             }
@@ -241,54 +433,49 @@ namespace Ecomerce_dotnet.Controllers
                     DiscountPercentage = dto.DiscountPercentage,
                     CategoryId = dto.CategoryId,
                     BrandId = dto.BrandId,
+                    TargetGender = dto.TargetGender,
                     IsDeleted = false
                 };
 
                 _context.Products.Add(product);
 
-                var skuToVariantIdMap = new Dictionary<string, Guid>();
-
-                foreach (var vDto in dto.Variants)
+                foreach (var item in variantsToCreate)
                 {
                     var variant = new ProductVariant
                     {
                         ProductId = product.Id,
-                        Color = vDto.Color,
-                        Size = vDto.Size,
-                        PhysicalQuantity = vDto.InitialPhysicalQuantity,
+                        Color = item.Color,
+                        Size = item.Size,
+                        PhysicalQuantity = item.Quantity,
                         ReservedQuantity = 0,
-                        Sku = vDto.Sku
-                        // RowVersion is handled automatically by EF Core/SQL Server, no assignment needed here!
+                        Sku = item.Sku
                     };
 
                     _context.ProductVariants.Add(variant);
-                    skuToVariantIdMap.Add(variant.Sku, variant.Id);
+
+                    if (variant.PhysicalQuantity > 0)
+                    {
+                        var movement = new StockMovement
+                        {
+                            ProductVariantId = variant.Id,
+                            QuantityChanged = variant.PhysicalQuantity,
+                            MovementType = StockMovementType.Restock,
+                            ChangedBy = GetUserEmail(),
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.StockMovements.Add(movement);
+                    }
                 }
 
-                // Process Binary Files using the correct DTO properties
+                // Process Binary Files mapped by Color
                 if (dto.Images != null)
                 {
                     for (int i = 0; i < dto.Images.Count; i++)
                     {
                         var file = dto.Images[i];
-                        var targetSku = (dto.ImageTargetSkus != null && dto.ImageTargetSkus.Count > i) ? dto.ImageTargetSkus[i] : null;
+                        var imageColor = (dto.ImageColors != null && dto.ImageColors.Count > i) ? dto.ImageColors[i]?.Trim() : null;
                         var isPrimary = (dto.ImageIsPrimary != null && dto.ImageIsPrimary.Count > i) ? dto.ImageIsPrimary[i] : false;
 
-                        Guid? explicitVariantId = null;
-
-                        if (!string.IsNullOrWhiteSpace(targetSku))
-                        {
-                            if (skuToVariantIdMap.TryGetValue(targetSku, out var variantId))
-                            {
-                                explicitVariantId = variantId;
-                            }
-                            else
-                            {
-                                return BadRequest($"Image target SKU '{targetSku}' does not match any variants provided.");
-                            }
-                        }
-
-                        // Save file physically using your FileService inside a 'products' subfolder
                         string savedFilePath = await _fileService.SaveFileAsync(file, "products");
                         uploadedFilePaths.Add(savedFilePath);
 
@@ -297,7 +484,7 @@ namespace Ecomerce_dotnet.Controllers
                             ProductId = product.Id,
                             ImageUrl = savedFilePath,
                             IsPrimary = isPrimary,
-                            ProductVariantId = explicitVariantId
+                            Color = imageColor
                         };
 
                         _context.ProductImages.Add(productImage);
@@ -307,7 +494,6 @@ namespace Ecomerce_dotnet.Controllers
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // CACHE INVALIDATION: Clear catalog caches so the new product shows up
                 await InvalidateProductCacheAsync(dto.CategoryId);
 
                 return CreatedAtAction("GetById", new { id = product.Id }, new { message = "Product created successfully.", productId = product.Id });
@@ -362,6 +548,7 @@ namespace Ecomerce_dotnet.Controllers
             product.DiscountPercentage = dto.DiscountPercentage;
             product.CategoryId = dto.CategoryId;
             product.BrandId = dto.BrandId;
+            product.TargetGender = dto.TargetGender;
 
             await _context.SaveChangesAsync();
 
@@ -435,12 +622,28 @@ namespace Ecomerce_dotnet.Controllers
 
             if (product == null) return NotFound("Parent product container missing.");
 
-            // 4. Map modifications
+            // 4. Map modifications and log inventory audit adjustments
+            int oldPhysicalQuantity = variant.PhysicalQuantity;
+            int quantityDifference = dto.PhysicalQuantity - oldPhysicalQuantity;
+
             variant.Color = dto.Color;
             variant.Size = dto.Size;
             variant.PhysicalQuantity = dto.PhysicalQuantity;
             variant.Sku = dto.Sku;
             // ReservedQuantity is managed by checkout rules, leave it out of raw admin updates!
+
+            if (quantityDifference != 0)
+            {
+                var movement = new StockMovement
+                {
+                    ProductVariantId = variant.Id,
+                    QuantityChanged = quantityDifference,
+                    MovementType = StockMovementType.AuditCorrection,
+                    ChangedBy = GetUserEmail(),
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.StockMovements.Add(movement);
+            }
 
             await _context.SaveChangesAsync();
 
@@ -480,18 +683,23 @@ namespace Ecomerce_dotnet.Controllers
                 return BadRequest("Cannot delete the last variant. If you wish to pull this product completely, delete the entire Product entity instead.");
             }
 
-            // 4. Isolate and wipe associated image variations bound specifically to this color option
-            var specificVariantImages = await _context.ProductImages
-                .Where(img => img.ProductVariantId == variantId)
-                .ToListAsync();
+            // 4. Isolate and wipe associated image variations bound specifically to this color option if no other variants share this color
+            bool otherVariantsExistWithColor = await _context.ProductVariants
+                .AnyAsync(v => v.ProductId == variant.ProductId && v.Id != variantId && v.Color.ToLower() == variant.Color.ToLower());
 
-            if (specificVariantImages.Any())
+            if (!otherVariantsExistWithColor && !string.IsNullOrWhiteSpace(variant.Color))
             {
-                _context.ProductImages.RemoveRange(specificVariantImages);
-                // Clean up physical file storage via your FileService
-                foreach (var img in specificVariantImages)
+                var colorImages = await _context.ProductImages
+                    .Where(img => img.ProductId == variant.ProductId && img.Color != null && img.Color.ToLower() == variant.Color.ToLower())
+                    .ToListAsync();
+
+                if (colorImages.Any())
                 {
-                    _fileService.DeletePhysicalFile(img.ImageUrl);
+                    _context.ProductImages.RemoveRange(colorImages);
+                    foreach (var img in colorImages)
+                    {
+                        _fileService.DeletePhysicalFile(img.ImageUrl);
+                    }
                 }
             }
 
@@ -539,6 +747,20 @@ namespace Ecomerce_dotnet.Controllers
             };
 
             _context.ProductVariants.Add(variant);
+
+            if (variant.PhysicalQuantity > 0)
+            {
+                var movement = new StockMovement
+                {
+                    ProductVariantId = variant.Id,
+                    QuantityChanged = variant.PhysicalQuantity,
+                    MovementType = StockMovementType.Restock,
+                    ChangedBy = GetUserEmail(),
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.StockMovements.Add(movement);
+            }
+
             await _context.SaveChangesAsync();
 
             await InvalidateProductCacheAsync(product.CategoryId);
@@ -552,24 +774,12 @@ namespace Ecomerce_dotnet.Controllers
         [HttpPost("{id}/images")]
         public async Task<IActionResult> UploadProductImage(Guid id, [FromForm] ProductImageUploadDto dto)
         {
-            // FIXED: Where clause moved before Select projection
             var product = await _context.Products
                 .Where(p => p.Id == id && !p.IsDeleted)
                 .Select(p => new { p.Id, p.CategoryId })
                 .FirstOrDefaultAsync();
 
             if (product == null) return NotFound("Target product container not found.");
-
-            if (dto.ProductVariantId.HasValue)
-            {
-                // FIXED: Ensures Guid type safety comparison
-                var variantBelongs = await _context.ProductVariants
-                    .AnyAsync(v => v.Id == dto.ProductVariantId.Value && v.ProductId == id);
-                if (!variantBelongs)
-                {
-                    return BadRequest("The selected variant does not belong to this specific product.");
-                }
-            }
 
             if (dto.IsPrimary)
             {
@@ -583,7 +793,6 @@ namespace Ecomerce_dotnet.Controllers
                 }
             }
 
-            // FIXED: Referencing 'dto.File' to match the updated DTO property
             string savedFilePath = await _fileService.SaveFileAsync(dto.File, "products");
 
             var productImage = new ProductImage
@@ -591,7 +800,7 @@ namespace Ecomerce_dotnet.Controllers
                 ProductId = id,
                 ImageUrl = savedFilePath,
                 IsPrimary = dto.IsPrimary,
-                ProductVariantId = dto.ProductVariantId
+                Color = dto.Color?.Trim()
             };
 
             _context.ProductImages.Add(productImage);
@@ -599,7 +808,7 @@ namespace Ecomerce_dotnet.Controllers
 
             await InvalidateProductCacheAsync(product.CategoryId);
 
-            return Ok(new { message = "Image asset uploaded and attached successfully.", imageId = productImage.Id, path = savedFilePath });
+            return Ok(new { message = "Image asset uploaded and attached successfully.", imageId = productImage.Id, path = savedFilePath, color = productImage.Color });
         }
 
         // ========================================================
@@ -667,6 +876,13 @@ namespace Ecomerce_dotnet.Controllers
             }
 
             Console.WriteLine($"[Redis Cache] Invalidated key sets for Category container: {categoryId}");
+        }
+
+        private string GetUserEmail()
+        {
+            return User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value 
+                ?? User.Identity?.Name 
+                ?? "System";
         }
     }
 }

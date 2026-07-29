@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -230,7 +230,7 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(result);
         }
 
-        // 3. GET: api/orders/{id} (Detailed Order Overview Card)
+        // 3. GET: api/orders/{id} (Detailed Order Overview Card with Item Images)
         [HttpGet("{id}")]
         public async Task<IActionResult> GetOrderById(Guid id)
         {
@@ -240,9 +240,24 @@ namespace Ecomerce_dotnet.Controllers
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.ProductVariant)
                         .ThenInclude(v => v!.Product)
+                            .ThenInclude(p => p!.Category)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.ProductVariant)
+                        .ThenInclude(v => v!.Product)
+                            .ThenInclude(p => p!.Brand)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
-            if (order == null) return NotFound("The requested order records could not be found.");
+            if (order == null) return NotFound("The requested order record could not be found.");
+
+            var productIds = order.OrderItems
+                .Where(oi => oi.ProductVariant?.Product != null)
+                .Select(oi => oi.ProductVariant!.ProductId)
+                .Distinct()
+                .ToList();
+
+            var images = await _context.ProductImages
+                .Where(img => productIds.Contains(img.ProductId))
+                .ToListAsync();
 
             var response = new
             {
@@ -254,6 +269,9 @@ namespace Ecomerce_dotnet.Controllers
                 order.ShippingAddress,
                 Latitude = order.DeliveryLatitude,
                 Longitude = order.DeliveryLongitude,
+                order.PaymentMethod,
+                order.QrCode,
+                order.QrMd5,
                 Customer = new
                 {
                     order.User?.Id,
@@ -266,39 +284,124 @@ namespace Ecomerce_dotnet.Controllers
                     order.Payment.Status,
                     order.Payment.PaidAt
                 },
-                Items = order.OrderItems.Select(oi => new
-                {
-                    oi.Id,
-                    ProductName = oi.ProductVariant?.Product?.Name ?? "Unknown Product",
-                    Size = oi.ProductVariant?.Size,
-                    Color = oi.ProductVariant?.Color,
-                    Sku = oi.ProductVariant?.Sku,
-                    oi.Quantity,
-                    oi.PriceAtPurchase
+                Items = order.OrderItems.Select(oi => {
+                    var productImages = images.Where(img => img.ProductId == oi.ProductVariant?.ProductId).ToList();
+                    var itemImage = productImages.FirstOrDefault(img => string.Equals(img.Color, oi.ProductVariant?.Color, StringComparison.OrdinalIgnoreCase))?.ImageUrl
+                        ?? productImages.FirstOrDefault(img => img.IsPrimary)?.ImageUrl
+                        ?? productImages.FirstOrDefault()?.ImageUrl
+                        ?? string.Empty;
+
+                    return new
+                    {
+                        oi.Id,
+                        ProductId = oi.ProductVariant?.ProductId,
+                        VariantId = oi.VariantId,
+                        ProductName = oi.ProductVariant?.Product?.Name ?? "Unknown Product",
+                        ProductDescription = oi.ProductVariant?.Product?.Description ?? string.Empty,
+                        CategoryName = oi.ProductVariant?.Product?.Category?.Name ?? "Unknown",
+                        BrandName = oi.ProductVariant?.Product?.Brand?.Name ?? "Unknown",
+                        Size = oi.ProductVariant?.Size,
+                        Color = oi.ProductVariant?.Color,
+                        Sku = oi.ProductVariant?.Sku,
+                        ImageUrl = itemImage,
+                        Images = productImages.Select(img => new
+                        {
+                            img.Id,
+                            img.ImageUrl,
+                            img.IsPrimary,
+                            img.Color
+                        }).ToList(),
+                        oi.Quantity,
+                        oi.PriceAtPurchase,
+                        SubTotal = oi.PriceAtPurchase * oi.Quantity
+                    };
                 })
             };
 
             return Ok(response);
         }
 
-        // 4. PUT: api/orders/{id}/status (Update Order Tracking to Shipped / Delivered / Finished)
+        // 4. GET: api/orders/user/{userId} (Customer Order History with Images)
+        [HttpGet("user/{userId:guid}")]
+        public async Task<IActionResult> GetUserOrders(Guid userId)
+        {
+            var orders = await _context.Orders
+                .Where(o => o.UserId == userId)
+                .Include(o => o.Payment)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.ProductVariant)
+                        .ThenInclude(v => v!.Product)
+                .OrderByDescending(o => o.OrderDate)
+                .ToListAsync();
+
+            var productIds = orders
+                .SelectMany(o => o.OrderItems)
+                .Where(oi => oi.ProductVariant?.Product != null)
+                .Select(oi => oi.ProductVariant!.ProductId)
+                .Distinct()
+                .ToList();
+
+            var images = await _context.ProductImages
+                .Where(img => productIds.Contains(img.ProductId))
+                .ToListAsync();
+
+            var response = orders.Select(order => new
+            {
+                order.Id,
+                order.OrderDate,
+                order.TotalAmount,
+                order.Status,
+                order.ContactPhone,
+                order.ShippingAddress,
+                Latitude = order.DeliveryLatitude,
+                Longitude = order.DeliveryLongitude,
+                PaymentDetails = order.Payment == null ? null : new
+                {
+                    order.Payment.BakongTransactionRef,
+                    order.Payment.Status,
+                    order.Payment.PaidAt
+                },
+                Items = order.OrderItems.Select(oi => {
+                    var productImages = images.Where(img => img.ProductId == oi.ProductVariant?.ProductId).ToList();
+                    var itemImage = productImages.FirstOrDefault(img => string.Equals(img.Color, oi.ProductVariant?.Color, StringComparison.OrdinalIgnoreCase))?.ImageUrl
+                        ?? productImages.FirstOrDefault(img => img.IsPrimary)?.ImageUrl
+                        ?? productImages.FirstOrDefault()?.ImageUrl
+                        ?? string.Empty;
+
+                    return new
+                    {
+                        oi.Id,
+                        ProductId = oi.ProductVariant?.ProductId,
+                        VariantId = oi.VariantId,
+                        ProductName = oi.ProductVariant?.Product?.Name ?? "Unknown Product",
+                        Size = oi.ProductVariant?.Size,
+                        Color = oi.ProductVariant?.Color,
+                        Sku = oi.ProductVariant?.Sku,
+                        ImageUrl = itemImage,
+                        oi.Quantity,
+                        oi.PriceAtPurchase,
+                        SubTotal = oi.PriceAtPurchase * oi.Quantity
+                    };
+                })
+            });
+
+            return Ok(response);
+        }
+
+        // 5. PUT: api/orders/{id}/status (Update Order Tracking Status)
         [HttpPut("{id}/status")]
-        // [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateOrderStatusDto dto)
         {
             var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id);
 
             if (order == null) return NotFound("Order record not found.");
 
-            // Prevent manual tampering of unpaid orders through the status endpoint
             if (order.Status == "Pending")
             {
                 return BadRequest("Cannot manually transition the status of an unverified checkout session.");
             }
 
-            // Standard string tracking assignment matching your database rules
-            order.Status = dto.Status; // Accepts string parameters like "Shipped", "Delivered", or "Finished"
-
+            order.Status = dto.Status;
             await _context.SaveChangesAsync();
 
             return Ok(new { message = $"Order state transitioned to '{dto.Status}' successfully." });

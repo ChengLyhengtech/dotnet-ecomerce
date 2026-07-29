@@ -1,4 +1,4 @@
-﻿namespace Ecomerce_dotnet.Models
+namespace Ecomerce_dotnet.Models
 {
     public class ProductImage
     {
@@ -9,8 +9,8 @@
         public string ImageUrl { get; set; } = string.Empty;
         public bool IsPrimary { get; set; } = false;
 
-        // Direct Foreign Key link to a variant
-        public Guid? ProductVariantId { get; set; }
-        public ProductVariant? ProductVariant { get; set; }
+        // When Color is set (e.g., "brown", "black"), these images represent that specific color variation across all sizes.
+        // If Color is null, the image represents a general product hero photo.
+        public string? Color { get; set; }
     }
 }
