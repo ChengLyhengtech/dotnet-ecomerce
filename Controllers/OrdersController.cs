@@ -77,7 +77,8 @@ namespace Ecomerce_dotnet.Controllers
                         OrderId = order.Id,
                         VariantId = variant.Id,
                         Quantity = itemDto.Quantity,
-                        PriceAtPurchase = finalProductPrice
+                        PriceAtPurchase = finalProductPrice,
+                        UnitCost = variant.CostPrice
                     };
 
                     // Guard warehouse stock by putting requested counts into reservation hold
@@ -87,18 +88,52 @@ namespace Ecomerce_dotnet.Controllers
 
                 order.TotalAmount = calculatedTotalAmount;
 
-                // --- Generate Bakong KHQR Strings Immediately ---
-                var accountName = _config["BakongSettings:AccountName"] ?? "";
-                var username = _config["BakongSettings:AccountUsername"] ?? "";
-                var expirationTime = DateTime.UtcNow.AddMinutes(15); // Sync with your background cleanup timeout worker
+                // --- Generate Bakong KHQR Strings & Payment Record Immediately ---
+                var bakongId = _config["BakongSettings:BakongAccountID"] ?? _config["BakongSettings:BakongId"] ?? "vann_sak@bkrt";
+                var merchantId = _config["BakongSettings:MerchantID"] ?? "123456";
+                var merchantName = _config["BakongSettings:MerchantName"] ?? "ChengLyheng";
+                var merchantCity = _config["BakongSettings:MerchantCity"] ?? "Phnom Penh";
+                var acquiringBank = _config["BakongSettings:AcquiringBank"] ?? "Bakong";
+                var mobileNumber = _config["BakongSettings:MobileNumber"] ?? "85586513225";
+                var storeLabel = _config["BakongSettings:StoreLabel"] ?? "E-Commerce Store";
+                var terminalLabel = _config["BakongSettings:TerminalLabel"] ?? "Cashier_1";
+                var mcc = _config["BakongSettings:MerchantCategoryCode"] ?? "5999";
+                var expirationTime = DateTime.UtcNow.AddMinutes(30);
 
-                string qrString = _qrService.GenerateIndividualQrString(username, accountName, "PHNOM PENH", order.TotalAmount, "USD");
-                string md5Hash = _qrService.ComputeMd5Hash(qrString);
+                string invoice = $"INV-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+                var (qrString, md5Hash) = _qrService.GenerateMerchantQr(
+                    bakongId,
+                    merchantName,
+                    merchantCity,
+                    acquiringBank,
+                    order.TotalAmount,
+                    "USD",
+                    invoice,
+                    merchantId,
+                    mobileNumber,
+                    storeLabel,
+                    terminalLabel,
+                    mcc,
+                    expirationMinutes: 30
+                );
 
                 order.QrCode = qrString;
                 order.QrMd5 = md5Hash;
                 order.QrExpiration = expirationTime;
                 order.PaymentMethod = "khqr";
+
+                var payment = new Payment
+                {
+                    Invoice = invoice,
+                    Amount = order.TotalAmount,
+                    Currency = "USD",
+                    Md5 = md5Hash,
+                    QrString = qrString,
+                    Status = "PENDING",
+                    CreatedAt = DateTime.UtcNow,
+                    OrderId = order.Id
+                };
+                _context.Payments.Add(payment);
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -111,7 +146,7 @@ namespace Ecomerce_dotnet.Controllers
                     data = new
                     {
                         orderId = order.Id,
-                        merchant_name = accountName,
+                        merchant_name = merchantName,
                         qr_code = order.QrCode,
                         qr_md5 = order.QrMd5,
                         amount = order.TotalAmount,

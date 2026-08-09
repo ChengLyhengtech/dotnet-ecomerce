@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Ecomerce_dotnet.DTOs
 {
@@ -12,6 +12,9 @@ namespace Ecomerce_dotnet.DTOs
 
         [Range(0, 100000)]
         public int InitialPhysicalQuantity { get; set; }
+
+        [Range(0, 1000000)]
+        public decimal UnitCost { get; set; }
 
         [Required]
         public string Sku { get; set; } = string.Empty;

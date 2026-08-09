@@ -11,6 +11,8 @@ namespace Ecomerce_dotnet.Models
         
         public int QuantityChanged { get; set; }
         
+        public decimal UnitCost { get; set; }
+        
         public StockMovementType MovementType { get; set; }
         
         public string ChangedBy { get; set; } = "System";

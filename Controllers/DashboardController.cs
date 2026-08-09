@@ -41,7 +41,7 @@ namespace Ecomerce_dotnet.Controllers
 
                 _logger.LogInformation("Generating dashboard summary from {Start} to {End}", start, end);
 
-                // 1. Calculate Financials: Gross Revenue, Total Orders, and Average Order Value (AOV)
+                // 1. Calculate Financials: Gross Revenue, Total COGS, Net Profit, Profit Margin %, Total Orders, and AOV
                 // Filtered by date range and non-Pending, non-Cancelled orders
                 var financialsQuery = await _context.Orders
                     .Where(o => o.OrderDate >= start && o.OrderDate <= end && o.Status != "Pending" && o.Status != "Cancelled")
@@ -53,13 +53,32 @@ namespace Ecomerce_dotnet.Controllers
                     })
                     .FirstOrDefaultAsync();
 
+                var totalCogs = await _context.OrderItems
+                    .Where(oi => oi.Order != null 
+                        && oi.Order.OrderDate >= start 
+                        && oi.Order.OrderDate <= end 
+                        && oi.Order.Status != "Pending" 
+                        && oi.Order.Status != "Cancelled")
+                    .SumAsync(oi => (decimal?)(oi.Quantity * oi.UnitCost)) ?? 0m;
+
+                decimal grossRevenue = financialsQuery?.GrossRevenue ?? 0m;
+                int totalOrders = financialsQuery?.TotalOrders ?? 0;
+                decimal netProfit = grossRevenue - totalCogs;
+                decimal profitMarginPercentage = grossRevenue > 0 
+                    ? Math.Round((netProfit / grossRevenue) * 100m, 2) 
+                    : 0m;
+                decimal averageOrderValue = totalOrders > 0 
+                    ? Math.Round(grossRevenue / totalOrders, 2) 
+                    : 0m;
+
                 var financials = new FinancialsDto
                 {
-                    GrossRevenue = financialsQuery?.GrossRevenue ?? 0m,
-                    TotalOrders = financialsQuery?.TotalOrders ?? 0,
-                    AverageOrderValue = (financialsQuery != null && financialsQuery.TotalOrders > 0)
-                        ? Math.Round(financialsQuery.GrossRevenue / financialsQuery.TotalOrders, 2)
-                        : 0m
+                    GrossRevenue = grossRevenue,
+                    TotalCOGS = totalCogs,
+                    NetProfit = netProfit,
+                    ProfitMarginPercentage = profitMarginPercentage,
+                    TotalOrders = totalOrders,
+                    AverageOrderValue = averageOrderValue
                 };
 
                 // 2. Query Total Registered Customer User Account Count

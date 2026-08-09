@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Ecomerce_dotnet.Models
 {
@@ -14,6 +14,7 @@ namespace Ecomerce_dotnet.Models
         // Real-World Stock Split
         public int PhysicalQuantity { get; set; }  // Actual count physically sitting in the warehouse
         public int ReservedQuantity { get; set; }  // Items held in active checkout/pending payment
+        public decimal CostPrice { get; set; }     // Supplier unit purchase cost
         public string Sku { get; set; } = string.Empty; // Stock Keeping Unit (Unique ID)
 
         // Computed property: What is actually buyable right now

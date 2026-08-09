@@ -494,7 +494,18 @@
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
-    "Parameters": [],
+    "Parameters": [
+      {
+        "Name": "rootOnly",
+        "Type": "System.Nullable\u00601[[System.Boolean, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "parentCategoryId",
+        "Type": "System.Nullable\u00601[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -513,6 +524,11 @@
       {
         "Name": "Image",
         "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "ParentCategoryId",
+        "Type": "System.Nullable\u00601[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "IsRequired": false
       }
     ],
@@ -556,6 +572,11 @@
         "Name": "Image",
         "Type": "Microsoft.AspNetCore.Http.IFormFile",
         "IsRequired": false
+      },
+      {
+        "Name": "ParentCategoryId",
+        "Type": "System.Nullable\u00601[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
@@ -577,6 +598,53 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "Ecomerce_dotnet.Controllers.CategoriesController",
+    "Method": "GetTree",
+    "RelativePath": "api/Categories/tree",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "CheckPaymentGet",
+    "RelativePath": "api/check-payment/{invoice}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoice",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "CheckPaymentPost",
+    "RelativePath": "api/check-payment/{invoice}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoice",
+        "Type": "System.String",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.CheckPaymentRequestDto",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "Ecomerce_dotnet.Controllers.DashboardController",
     "Method": "GetSummary",
     "RelativePath": "api/Dashboard/summary",
@@ -592,6 +660,22 @@
       {
         "Name": "endDate",
         "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "GenerateKhqr",
+    "RelativePath": "api/generate-khqr",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.GenerateKhqrRequestDto",
         "IsRequired": false
       }
     ],
@@ -825,20 +909,84 @@
   },
   {
     "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
-    "Method": "CheckPayment",
-    "RelativePath": "api/Payment/check-status/{orderId}",
+    "Method": "CheckPaymentGet",
+    "RelativePath": "api/Payment/check-payment/{invoice}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoice",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "CheckPaymentPost",
+    "RelativePath": "api/Payment/check-payment/{invoice}",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
-        "Name": "orderId",
-        "Type": "System.Guid",
+        "Name": "invoice",
+        "Type": "System.String",
         "IsRequired": true
       },
       {
-        "Name": "body",
-        "Type": "System.Text.Json.JsonElement",
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.CheckPaymentRequestDto",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "GenerateDeeplink",
+    "RelativePath": "api/Payment/generate-deeplink",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.GenerateDeeplinkRequestDto",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "GenerateKhqr",
+    "RelativePath": "api/Payment/generate-khqr",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.GenerateKhqrRequestDto",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "GetQrImage",
+    "RelativePath": "api/Payment/qr-image/{invoice}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoice",
+        "Type": "System.String",
         "IsRequired": true
       }
     ],
@@ -1094,6 +1242,22 @@
   },
   {
     "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
+    "Method": "DeleteProductImage",
+    "RelativePath": "api/Products/images/{imageId}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "imageId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
     "Method": "SetPrimaryImage",
     "RelativePath": "api/Products/images/{imageId}/set-primary",
     "HttpMethod": "PUT",
@@ -1193,6 +1357,22 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "GetQrImage",
+    "RelativePath": "api/qr-image/{invoice}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoice",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "Ecomerce_dotnet.Controllers.ReturnRequestsController",
     "Method": "GetAllRequests",
     "RelativePath": "api/ReturnRequests",
@@ -1267,6 +1447,351 @@
         "Name": "dto",
         "Type": "Ecomerce_dotnet.DTOs.ReturnRequestCreateDto",
         "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "GetActiveContacts",
+    "RelativePath": "api/Shop/contacts",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "CreateContact",
+    "RelativePath": "api/Shop/contacts",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Title",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProfileUrl",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "IconImage",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "ContactType",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "DisplayOrder",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsActive",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "GetContactById",
+    "RelativePath": "api/Shop/contacts/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "UpdateContact",
+    "RelativePath": "api/Shop/contacts/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "Title",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProfileUrl",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "IconImage",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "ContactType",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "DisplayOrder",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsActive",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "DeleteContact",
+    "RelativePath": "api/Shop/contacts/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "ToggleContactActive",
+    "RelativePath": "api/Shop/contacts/{id}/toggle-active",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "GetAllContactsAdmin",
+    "RelativePath": "api/Shop/contacts/admin",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "GetShopLocation",
+    "RelativePath": "api/Shop/location",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "UpdateShopLocation",
+    "RelativePath": "api/Shop/location",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.ShopLocationDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "UpdateShopLocation",
+    "RelativePath": "api/Shop/location",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.ShopLocationDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "GetShopProfile",
+    "RelativePath": "api/Shop/profile",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "UpdateShopProfile",
+    "RelativePath": "api/Shop/profile",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ShopName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Description",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Phone",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Address",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "GoogleMapUrl",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Latitude",
+        "Type": "System.Nullable\u00601[[System.Double, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "Longitude",
+        "Type": "System.Nullable\u00601[[System.Double, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "OpeningHours",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "LogoImage",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ShopController",
+    "Method": "UpdateShopProfile",
+    "RelativePath": "api/Shop/profile",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ShopName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Description",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Phone",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Address",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "GoogleMapUrl",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Latitude",
+        "Type": "System.Nullable\u00601[[System.Double, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "Longitude",
+        "Type": "System.Nullable\u00601[[System.Double, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "OpeningHours",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "LogoImage",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "GenerateDeeplink",
+    "RelativePath": "api/v1/generate_deeplink_by_qr",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.GenerateDeeplinkRequestDto",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []

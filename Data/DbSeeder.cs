@@ -86,6 +86,73 @@ namespace Ecomerce_dotnet.Data
                     logger.LogError("Failed to seed Manager account: {Errors}", string.Join(", ", createManagerResult.Errors));
                 }
             }
+            // 4. Seed Default Shop Profile & Contacts
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            if (!await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(context.ShopProfiles))
+            {
+                var defaultProfile = new ShopProfile
+                {
+                    ShopName = "My Commerce Store",
+                    Description = "Your premier destination for high quality products.",
+                    Email = "support@ecommerce.com",
+                    Phone = "+855 12 345 678",
+                    Address = "St 2004, Phnom Penh, Cambodia",
+                    GoogleMapUrl = "https://maps.google.com/?q=11.5564,104.9282",
+                    Latitude = 11.5564,
+                    Longitude = 104.9282,
+                    OpeningHours = "Mon - Sun: 8:00 AM - 8:00 PM",
+                    UpdatedAt = DateTime.UtcNow
+                };
+                context.ShopProfiles.Add(defaultProfile);
+                await context.SaveChangesAsync();
+                logger.LogInformation("Default ShopProfile seeded successfully.");
+            }
+
+            if (!await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(context.ShopContacts))
+            {
+                var defaultContacts = new[]
+                {
+                    new ShopContact
+                    {
+                        Title = "Facebook",
+                        ProfileUrl = "https://facebook.com/ecommerce",
+                        IconUrl = "/uploads/contacts/default_facebook.png",
+                        ContactType = "Social",
+                        DisplayOrder = 1,
+                        IsActive = true
+                    },
+                    new ShopContact
+                    {
+                        Title = "TikTok",
+                        ProfileUrl = "https://tiktok.com/@ecommerce",
+                        IconUrl = "/uploads/contacts/default_tiktok.png",
+                        ContactType = "Social",
+                        DisplayOrder = 2,
+                        IsActive = true
+                    },
+                    new ShopContact
+                    {
+                        Title = "Phone",
+                        ProfileUrl = "tel:+85512345678",
+                        IconUrl = "/uploads/contacts/default_phone.png",
+                        ContactType = "Phone",
+                        DisplayOrder = 3,
+                        IsActive = true
+                    },
+                    new ShopContact
+                    {
+                        Title = "Telegram",
+                        ProfileUrl = "https://t.me/ecommerce_support",
+                        IconUrl = "/uploads/contacts/default_telegram.png",
+                        ContactType = "Messenger",
+                        DisplayOrder = 4,
+                        IsActive = true
+                    }
+                };
+                context.ShopContacts.AddRange(defaultContacts);
+                await context.SaveChangesAsync();
+                logger.LogInformation("Default ShopContacts seeded successfully.");
+            }
         }
     }
 }

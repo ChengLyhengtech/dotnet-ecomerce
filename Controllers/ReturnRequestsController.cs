@@ -355,15 +355,31 @@ namespace Ecomerce_dotnet.Controllers
         {
             try
             {
-                var defaultKeys = new List<string>
+                var defaultKeys = new List<string>();
+
+                string[] cats = new string[] { "", categoryId.ToString() };
+                bool?[] discs = new bool?[] { null, false, true };
+                int[] pageSizes = new int[] { 10, 20, 50 };
+                int[] pageNumbers = new int[] { 1, 2, 3, 4, 5 };
+
+                foreach (var cat in cats)
                 {
-                    "products:cat=:disc=:q=:p=1:sz=10",
-                    "products:cat=:disc=False:q=:p=1:sz=10",
-                    "products:cat=:disc=True:q=:p=1:sz=10",
-                    $"products:cat={categoryId}:disc=:q=:p=1:sz=10",
-                    $"products:cat={categoryId}:disc=False:q=:p=1:sz=10",
-                    $"products:cat={categoryId}:disc=True:q=:p=1:sz=10"
-                };
+                    foreach (var disc in discs)
+                    {
+                        foreach (var sz in pageSizes)
+                        {
+                            foreach (var p in pageNumbers)
+                            {
+                                defaultKeys.Add($"products:cat={cat}:brand=:disc={disc}:q=:minp=:maxp=:gen=:p={p}:sz={sz}");
+                                defaultKeys.Add($"products:cat={cat}:disc={disc}:q=:p={p}:sz={sz}");
+                            }
+                        }
+                    }
+                }
+
+                defaultKeys.Add("products:top-selling:count=5");
+                defaultKeys.Add("products:top-selling:count=10");
+                defaultKeys.Add("products:top-selling:count=20");
 
                 foreach (var key in defaultKeys)
                 {

@@ -8,6 +8,8 @@ namespace Ecomerce_dotnet.DTOs
         
         public int Quantity { get; set; }
         
+        public decimal UnitCost { get; set; }
+        
         public string ReasonCode { get; set; } = string.Empty;
         
         public string? ReferenceId { get; set; }
@@ -42,6 +44,7 @@ namespace Ecomerce_dotnet.DTOs
         public Guid Id { get; set; }
         public Guid ProductVariantId { get; set; }
         public int QuantityChanged { get; set; }
+        public decimal UnitCost { get; set; }
         public string MovementType { get; set; } = string.Empty;
         public string ChangedBy { get; set; } = string.Empty;
         public string ReasonCode { get; set; } = string.Empty;

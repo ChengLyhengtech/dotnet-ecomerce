@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "NdxaAgnAr14=",
+  "dgSpecHash": "NR2k85/Xhj0=",
   "success": true,
   "projectFilePath": "D:\\Web-Development\\ecomerce-dotnet\\Ecomerce-dotnet\\Ecomerce-dotnet\\Ecomerce-dotnet.csproj",
   "expectedPackageFiles": [
@@ -12,6 +12,7 @@
     "C:\\Users\\LyHeng\\.nuget\\packages\\google.apis.auth\\1.75.0\\google.apis.auth.1.75.0.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\google.apis.core\\1.75.0\\google.apis.core.1.75.0.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
+    "C:\\Users\\LyHeng\\.nuget\\packages\\kh.gov.nbc.bakongkhqr\\1.0.0.15\\kh.gov.nbc.bakongkhqr.1.0.0.15.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\8.0.0\\microsoft.aspnetcore.authentication.jwtbearer.8.0.0.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\microsoft.aspnetcore.cryptography.internal\\8.0.0\\microsoft.aspnetcore.cryptography.internal.8.0.0.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\microsoft.aspnetcore.cryptography.keyderivation\\8.0.0\\microsoft.aspnetcore.cryptography.keyderivation.8.0.0.nupkg.sha512",
@@ -58,6 +59,7 @@
     "C:\\Users\\LyHeng\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\newtonsoft.json\\13.0.4\\newtonsoft.json.13.0.4.nupkg.sha512",
+    "C:\\Users\\LyHeng\\.nuget\\packages\\qrcoder\\1.8.0\\qrcoder.1.8.0.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\respite\\3.0.17\\respite.3.0.17.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\stackexchange.redis\\3.0.17\\stackexchange.redis.3.0.17.nupkg.sha512",
     "C:\\Users\\LyHeng\\.nuget\\packages\\swashbuckle.aspnetcore\\6.6.2\\swashbuckle.aspnetcore.6.6.2.nupkg.sha512",

@@ -27,6 +27,8 @@ namespace Ecomerce_dotnet.Data
         public DbSet<StockMovement> StockMovements { get; set; }
         public DbSet<ReturnRequest> ReturnRequests { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<ShopProfile> ShopProfiles { get; set; }
+        public DbSet<ShopContact> ShopContacts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -37,6 +39,9 @@ namespace Ecomerce_dotnet.Data
             modelBuilder.Entity<Product>().Property(p => p.DiscountPercentage).HasColumnType("decimal(5,2)");
             modelBuilder.Entity<Order>().Property(o => o.TotalAmount).HasColumnType("decimal(18,2)");
             modelBuilder.Entity<OrderItem>().Property(oi => oi.PriceAtPurchase).HasColumnType("decimal(18,2)");
+            modelBuilder.Entity<OrderItem>().Property(oi => oi.UnitCost).HasColumnType("decimal(18,2)");
+            modelBuilder.Entity<ProductVariant>().Property(pv => pv.CostPrice).HasColumnType("decimal(18,2)");
+            modelBuilder.Entity<StockMovement>().Property(sm => sm.UnitCost).HasColumnType("decimal(18,2)");
 
             // 2. Prevent Cascade Delete loops
             modelBuilder.Entity<OrderItem>()
@@ -134,6 +139,13 @@ namespace Ecomerce_dotnet.Data
             modelBuilder.Entity<Notification>()
                 .Property(n => n.TargetUrl)
                 .HasMaxLength(250);
+
+            // 7. Configure Category Self-Referencing Parent-Child relationship
+            modelBuilder.Entity<Category>()
+                .HasOne(c => c.ParentCategory)
+                .WithMany(c => c.SubCategories)
+                .HasForeignKey(c => c.ParentCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

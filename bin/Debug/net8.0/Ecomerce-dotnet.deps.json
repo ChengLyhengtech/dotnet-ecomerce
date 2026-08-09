@@ -10,12 +10,14 @@
         "dependencies": {
           "Google.Api.Gax.Rest": "4.14.0",
           "Google.Apis.Auth": "1.75.0",
+          "Kh.Gov.Nbc.BakongKHQR": "1.0.0.15",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "8.0.0",
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "8.0.0",
           "Microsoft.EntityFrameworkCore": "8.0.0",
           "Microsoft.EntityFrameworkCore.SqlServer": "8.0.0",
           "Microsoft.EntityFrameworkCore.Tools": "8.0.0",
           "Microsoft.Extensions.Caching.StackExchangeRedis": "10.0.9",
+          "QRCoder": "1.8.0",
           "StackExchange.Redis": "3.0.17",
           "Swashbuckle.AspNetCore": "6.6.2"
         },
@@ -116,6 +118,17 @@
           "lib/net6.0/Humanizer.dll": {
             "assemblyVersion": "2.14.0.0",
             "fileVersion": "2.14.1.48190"
+          }
+        }
+      },
+      "Kh.Gov.Nbc.BakongKHQR/1.0.0.15": {
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.4"
+        },
+        "runtime": {
+          "lib/netstandard2.0/kh.gov.nbc.bakong_khqr.dll": {
+            "assemblyVersion": "1.0.0.15",
+            "fileVersion": "1.0.0.15"
           }
         }
       },
@@ -692,6 +705,17 @@
           }
         }
       },
+      "QRCoder/1.8.0": {
+        "dependencies": {
+          "System.Drawing.Common": "6.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/QRCoder.dll": {
+            "assemblyVersion": "1.8.0.0",
+            "fileVersion": "1.8.0.0"
+          }
+        }
+      },
       "RESPite/3.0.17": {
         "runtime": {
           "lib/net8.0/RESPite.dll": {
@@ -1048,6 +1072,13 @@
       "path": "humanizer.core/2.14.1",
       "hashPath": "humanizer.core.2.14.1.nupkg.sha512"
     },
+    "Kh.Gov.Nbc.BakongKHQR/1.0.0.15": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-NQWM52mPU29toPjjQBHbizUlwStSEE5HA0IXzBColhr0EeI5UOxIxRyQdWLq3j2o5mtWNnyku3ulanvDOB+zRQ==",
+      "path": "kh.gov.nbc.bakongkhqr/1.0.0.15",
+      "hashPath": "kh.gov.nbc.bakongkhqr.1.0.0.15.nupkg.sha512"
+    },
     "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.0": {
       "type": "package",
       "serviceable": true,
@@ -1292,6 +1323,13 @@
       "sha512": "sha512-pdgNNMai3zv51W5aq268sujXUyx7SNdE2bj1wZcWjAQrKMFZV260lbqYop1d2GM67JI1huLRwxo9ZqnfF/lC6A==",
       "path": "newtonsoft.json/13.0.4",
       "hashPath": "newtonsoft.json.13.0.4.nupkg.sha512"
+    },
+    "QRCoder/1.8.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-RuvX3PEXU6pbY/I5ItAk800jm62r+YnoPLgyS2WTgwxkOnGkOfU9ORiipHUF0LkLyqM8rlroUCA319JjRYfRFQ==",
+      "path": "qrcoder/1.8.0",
+      "hashPath": "qrcoder.1.8.0.nupkg.sha512"
     },
     "RESPite/3.0.17": {
       "type": "package",

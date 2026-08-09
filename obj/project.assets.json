@@ -145,6 +145,18 @@
           }
         }
       },
+      "Kh.Gov.Nbc.BakongKHQR/1.0.0.15": {
+        "type": "package",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.2"
+        },
+        "compile": {
+          "lib/netstandard2.0/kh.gov.nbc.bakong_khqr.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/kh.gov.nbc.bakong_khqr.dll": {}
+        }
+      },
       "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.0": {
         "type": "package",
         "dependencies": {
@@ -1057,7 +1069,7 @@
       "Microsoft.Win32.SystemEvents/6.0.0": {
         "type": "package",
         "compile": {
-          "lib/net6.0/_._": {
+          "lib/net6.0/Microsoft.Win32.SystemEvents.dll": {
             "related": ".xml"
           }
         },
@@ -1097,6 +1109,22 @@
         },
         "runtime": {
           "lib/net6.0/Newtonsoft.Json.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "QRCoder/1.8.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Drawing.Common": "6.0.0"
+        },
+        "compile": {
+          "lib/net6.0/QRCoder.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/QRCoder.dll": {
             "related": ".xml"
           }
         }
@@ -1373,7 +1401,7 @@
           "Microsoft.Win32.SystemEvents": "6.0.0"
         },
         "compile": {
-          "lib/net6.0/_._": {
+          "lib/net6.0/System.Drawing.Common.dll": {
             "related": ".xml"
           }
         },
@@ -1961,6 +1989,22 @@
         "lib/netstandard2.0/Humanizer.dll",
         "lib/netstandard2.0/Humanizer.xml",
         "logo.png"
+      ]
+    },
+    "Kh.Gov.Nbc.BakongKHQR/1.0.0.15": {
+      "sha512": "NQWM52mPU29toPjjQBHbizUlwStSEE5HA0IXzBColhr0EeI5UOxIxRyQdWLq3j2o5mtWNnyku3ulanvDOB+zRQ==",
+      "type": "package",
+      "path": "kh.gov.nbc.bakongkhqr/1.0.0.15",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE",
+        "README.md",
+        "icon.png",
+        "kh.gov.nbc.bakongkhqr.1.0.0.15.nupkg.sha512",
+        "kh.gov.nbc.bakongkhqr.nuspec",
+        "lib/net46/kh.gov.nbc.bakong_khqr.dll",
+        "lib/netstandard2.0/kh.gov.nbc.bakong_khqr.dll"
       ]
     },
     "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.0": {
@@ -3617,6 +3661,34 @@
         "packageIcon.png"
       ]
     },
+    "QRCoder/1.8.0": {
+      "sha512": "RuvX3PEXU6pbY/I5ItAk800jm62r+YnoPLgyS2WTgwxkOnGkOfU9ORiipHUF0LkLyqM8rlroUCA319JjRYfRFQ==",
+      "type": "package",
+      "path": "qrcoder/1.8.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.txt",
+        "README.md",
+        "lib/net35/QRCoder.dll",
+        "lib/net35/QRCoder.xml",
+        "lib/net40/QRCoder.dll",
+        "lib/net40/QRCoder.xml",
+        "lib/net5.0/QRCoder.dll",
+        "lib/net5.0/QRCoder.xml",
+        "lib/net6.0/QRCoder.dll",
+        "lib/net6.0/QRCoder.xml",
+        "lib/netstandard1.3/QRCoder.dll",
+        "lib/netstandard1.3/QRCoder.xml",
+        "lib/netstandard2.0/QRCoder.dll",
+        "lib/netstandard2.0/QRCoder.xml",
+        "lib/netstandard2.1/QRCoder.dll",
+        "lib/netstandard2.1/QRCoder.xml",
+        "nuget-icon.png",
+        "qrcoder.1.8.0.nupkg.sha512",
+        "qrcoder.nuspec"
+      ]
+    },
     "RESPite/3.0.17": {
       "sha512": "68slEMyRTUNLc75DruEDsEohFmFfNwkHLLtwQ46bobF+8Tl+UXMKM1kM87ihhKy6JdAqy1RrvAfvBWeLmcY9Gg==",
       "type": "package",
@@ -4807,12 +4879,14 @@
     "net8.0": [
       "Google.Api.Gax.Rest >= 4.14.0",
       "Google.Apis.Auth >= 1.75.0",
+      "Kh.Gov.Nbc.BakongKHQR >= 1.0.0.15",
       "Microsoft.AspNetCore.Authentication.JwtBearer >= 8.0.0",
       "Microsoft.AspNetCore.Identity.EntityFrameworkCore >= 8.0.0",
       "Microsoft.EntityFrameworkCore >= 8.0.0",
       "Microsoft.EntityFrameworkCore.SqlServer >= 8.0.0",
       "Microsoft.EntityFrameworkCore.Tools >= 8.0.0",
       "Microsoft.Extensions.Caching.StackExchangeRedis >= 10.0.9",
+      "QRCoder >= 1.8.0",
       "StackExchange.Redis >= 3.0.17",
       "Swashbuckle.AspNetCore >= 6.6.2"
     ]
@@ -4877,6 +4951,10 @@
             "target": "Package",
             "version": "[1.75.0, )"
           },
+          "Kh.Gov.Nbc.BakongKHQR": {
+            "target": "Package",
+            "version": "[1.0.0.15, )"
+          },
           "Microsoft.AspNetCore.Authentication.JwtBearer": {
             "target": "Package",
             "version": "[8.0.0, )"
@@ -4902,6 +4980,10 @@
           "Microsoft.Extensions.Caching.StackExchangeRedis": {
             "target": "Package",
             "version": "[10.0.9, )"
+          },
+          "QRCoder": {
+            "target": "Package",
+            "version": "[1.8.0, )"
           },
           "StackExchange.Redis": {
             "target": "Package",

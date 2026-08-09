@@ -17,6 +17,9 @@ namespace Ecomerce_dotnet.DTOs
     public class FinancialsDto
     {
         public decimal GrossRevenue { get; set; }
+        public decimal TotalCOGS { get; set; }          // Cost of Goods Sold
+        public decimal NetProfit { get; set; }          // GrossRevenue - TotalCOGS
+        public decimal ProfitMarginPercentage { get; set; } // (NetProfit / GrossRevenue) * 100
         public int TotalOrders { get; set; }
         public decimal AverageOrderValue { get; set; }
     }

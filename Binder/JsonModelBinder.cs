@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,7 +37,7 @@ namespace Ecomerce_dotnet.Binder
             var listType = bindingContext.ModelType.GenericTypeArguments[0];
             var listInstance = Activator.CreateInstance(typeof(List<>).MakeGenericType(listType)) as System.Collections.IList;
 
-            foreach (var rawValue in rawValues)
+            foreach (var rawValue in rawValues.Distinct())
             {
                 if (string.IsNullOrWhiteSpace(rawValue)) continue;
                 var trimmed = rawValue.Trim();
@@ -50,10 +50,8 @@ namespace Ecomerce_dotnet.Binder
                         var deserializedList = JsonSerializer.Deserialize(rawValue, bindingContext.ModelType, options) as System.Collections.IList;
                         if (deserializedList != null)
                         {
-                            foreach (var item in deserializedList)
-                            {
-                                listInstance?.Add(item);
-                            }
+                            bindingContext.Result = ModelBindingResult.Success(deserializedList);
+                            return Task.CompletedTask;
                         }
                     }
                     // Handle if passed as individual object parameters (like Swagger UI does here)

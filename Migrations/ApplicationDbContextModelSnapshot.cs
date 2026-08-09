@@ -154,7 +154,12 @@ namespace Ecomerce_dotnet.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("ParentCategoryId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentCategoryId");
 
                     b.ToTable("Categories");
                 });
@@ -262,6 +267,9 @@ namespace Ecomerce_dotnet.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<Guid>("VariantId")
                         .HasColumnType("uniqueidentifier");
 
@@ -287,7 +295,11 @@ namespace Ecomerce_dotnet.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Currency")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
@@ -296,11 +308,23 @@ namespace Ecomerce_dotnet.Migrations
                     b.Property<string>("FromAccountId")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid>("OrderId")
+                    b.Property<string>("Invoice")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Md5")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("OrderId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("QrString")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -312,7 +336,8 @@ namespace Ecomerce_dotnet.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrderId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[OrderId] IS NOT NULL");
 
                     b.ToTable("Payments");
                 });
@@ -394,6 +419,9 @@ namespace Ecomerce_dotnet.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("CostPrice")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("PhysicalQuantity")
                         .HasColumnType("int");
 
@@ -469,6 +497,90 @@ namespace Ecomerce_dotnet.Migrations
                     b.ToTable("ReturnRequests");
                 });
 
+            modelBuilder.Entity("Ecomerce_dotnet.Models.ShopContact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContactType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IconUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ProfileUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ShopContacts");
+                });
+
+            modelBuilder.Entity("Ecomerce_dotnet.Models.ShopProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleMapUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("OpeningHours")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ShopName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ShopProfiles");
+                });
+
             modelBuilder.Entity("Ecomerce_dotnet.Models.StockMovement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -505,6 +617,9 @@ namespace Ecomerce_dotnet.Migrations
                     b.Property<string>("ReferenceId")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -780,6 +895,16 @@ namespace Ecomerce_dotnet.Migrations
                     b.Navigation("ProductVariant");
                 });
 
+            modelBuilder.Entity("Ecomerce_dotnet.Models.Category", b =>
+                {
+                    b.HasOne("Ecomerce_dotnet.Models.Category", "ParentCategory")
+                        .WithMany("SubCategories")
+                        .HasForeignKey("ParentCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ParentCategory");
+                });
+
             modelBuilder.Entity("Ecomerce_dotnet.Models.Order", b =>
                 {
                     b.HasOne("Ecomerce_dotnet.Models.User", "User")
@@ -814,9 +939,7 @@ namespace Ecomerce_dotnet.Migrations
                 {
                     b.HasOne("Ecomerce_dotnet.Models.Order", "Order")
                         .WithOne("Payment")
-                        .HasForeignKey("Ecomerce_dotnet.Models.Payment", "OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("Ecomerce_dotnet.Models.Payment", "OrderId");
 
                     b.Navigation("Order");
                 });
@@ -975,6 +1098,8 @@ namespace Ecomerce_dotnet.Migrations
             modelBuilder.Entity("Ecomerce_dotnet.Models.Category", b =>
                 {
                     b.Navigation("Products");
+
+                    b.Navigation("SubCategories");
                 });
 
             modelBuilder.Entity("Ecomerce_dotnet.Models.Order", b =>

@@ -139,15 +139,19 @@ namespace Ecomerce_dotnet.Controllers
                     Color = v.Color,
                     Size = v.Size,
                     AvailableStock = Math.Max(0, v.PhysicalQuantity - v.ReservedQuantity),
+                    CostPrice = v.CostPrice,
                     Sku = v.Sku
                 }).ToList(),
-                Images = images.Where(img => img.ProductId == p.Id).Select(img => new ProductImageDto
-                {
-                    Id = img.Id,
-                    ImageUrl = img.ImageUrl,
-                    IsPrimary = img.IsPrimary,
-                    Color = img.Color
-                }).ToList()
+                Images = images.Where(img => img.ProductId == p.Id)
+                    .OrderByDescending(img => img.IsPrimary)
+                    .Take(1)
+                    .Select(img => new ProductImageDto
+                    {
+                        Id = img.Id,
+                        ImageUrl = img.ImageUrl,
+                        IsPrimary = img.IsPrimary,
+                        Color = img.Color
+                    }).ToList()
             }).ToList();
 
             // Step D: Package the output properties cleanly inside the PagedResult structure
@@ -282,15 +286,19 @@ namespace Ecomerce_dotnet.Controllers
                     Color = v.Color,
                     Size = v.Size,
                     AvailableStock = Math.Max(0, v.PhysicalQuantity - v.ReservedQuantity),
+                    CostPrice = v.CostPrice,
                     Sku = v.Sku
                 }).ToList(),
-                Images = images.Where(img => img.ProductId == p.Id).Select(img => new ProductImageDto
-                {
-                    Id = img.Id,
-                    ImageUrl = img.ImageUrl,
-                    IsPrimary = img.IsPrimary,
-                    Color = img.Color
-                }).ToList()
+                Images = images.Where(img => img.ProductId == p.Id)
+                    .OrderByDescending(img => img.IsPrimary)
+                    .Take(1)
+                    .Select(img => new ProductImageDto
+                    {
+                        Id = img.Id,
+                        ImageUrl = img.ImageUrl,
+                        IsPrimary = img.IsPrimary,
+                        Color = img.Color
+                    }).ToList()
             }).ToList();
 
             var cacheOptions = new DistributedCacheEntryOptions
@@ -342,6 +350,7 @@ namespace Ecomerce_dotnet.Controllers
                     Color = v.Color,
                     Size = v.Size,
                     AvailableStock = Math.Max(0, v.PhysicalQuantity - v.ReservedQuantity),
+                    CostPrice = v.CostPrice,
                     Sku = v.Sku
                 }).ToList(),
                 Images = images.Select(img => new ProductImageDto
@@ -373,8 +382,41 @@ namespace Ecomerce_dotnet.Controllers
                 return BadRequest("The provided BrandId does not exist in the database system catalog.");
             }
 
-            // Extract incoming variant definitions from ColorGroups (or fallback Variants if ColorGroups is empty)
-            var variantsToCreate = new List<(string Color, string Size, int Quantity, string Sku)>();
+            // 1. Check for explicit SKU duplicates in the request payload (ignoring null/empty/whitespace)
+            List<string> rawPayloadSkus = new();
+            if (dto.ColorGroups != null && dto.ColorGroups.Any())
+            {
+                rawPayloadSkus = dto.ColorGroups
+                    .SelectMany(cg => cg.Sizes)
+                    .Select(s => s.Sku?.Trim())
+                    .Where(sku => !string.IsNullOrWhiteSpace(sku))
+                    .Cast<string>()
+                    .ToList();
+            }
+            else if (dto.Variants != null && dto.Variants.Any())
+            {
+                rawPayloadSkus = dto.Variants
+                    .Select(v => v.Sku?.Trim())
+                    .Where(sku => !string.IsNullOrWhiteSpace(sku))
+                    .Cast<string>()
+                    .ToList();
+            }
+
+            var duplicatePayloadSkus = rawPayloadSkus
+                .GroupBy(sku => sku, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+
+            if (duplicatePayloadSkus.Any())
+            {
+                return BadRequest(new { 
+                    message = $"Duplicate SKUs detected within request payload: {string.Join(", ", duplicatePayloadSkus)}" 
+                });
+            }
+
+            // 2. Extract incoming variant definitions from ColorGroups (or fallback Variants if ColorGroups is empty)
+            var variantsToCreate = new List<(string Color, string Size, int Quantity, string Sku, decimal UnitCost)>();
 
             if (dto.ColorGroups != null && dto.ColorGroups.Any())
             {
@@ -390,9 +432,9 @@ namespace Ecomerce_dotnet.Controllers
 
                         string finalSku = !string.IsNullOrWhiteSpace(sizeItem.Sku)
                             ? sizeItem.Sku.Trim()
-                            : $"{dto.Name.Replace(" ", "-")}-{group.Color}-{sizeItem.Size}".ToUpper();
+                            : $"{dto.Name.Replace(" ", "-")}-{group.Color.Trim()}-{sizeItem.Size.Trim()}".ToUpper();
 
-                        variantsToCreate.Add((group.Color.Trim(), sizeItem.Size.Trim(), sizeItem.PhysicalQuantity, finalSku));
+                        variantsToCreate.Add((group.Color.Trim(), sizeItem.Size.Trim(), sizeItem.PhysicalQuantity, finalSku, sizeItem.UnitCost));
                     }
                 }
             }
@@ -400,7 +442,11 @@ namespace Ecomerce_dotnet.Controllers
             {
                 foreach (var vDto in dto.Variants)
                 {
-                    variantsToCreate.Add((vDto.Color.Trim(), vDto.Size.Trim(), vDto.InitialPhysicalQuantity, vDto.Sku.Trim()));
+                    string finalSku = !string.IsNullOrWhiteSpace(vDto.Sku)
+                        ? vDto.Sku.Trim()
+                        : $"{dto.Name.Replace(" ", "-")}-{vDto.Color.Trim()}-{vDto.Size.Trim()}".ToUpper();
+
+                    variantsToCreate.Add((vDto.Color.Trim(), vDto.Size.Trim(), vDto.InitialPhysicalQuantity, finalSku, vDto.UnitCost));
                 }
             }
             else
@@ -408,16 +454,18 @@ namespace Ecomerce_dotnet.Controllers
                 return BadRequest("Product must contain at least one color group or variant option.");
             }
 
+            // 3. Check for existing SKUs in the Database
             var incomingSkus = variantsToCreate.Select(v => v.Sku).ToList();
-            if (incomingSkus.Count != incomingSkus.Distinct(StringComparer.OrdinalIgnoreCase).Count())
-            {
-                return BadRequest("Duplicate SKUs detected within the request payload.");
-            }
+            var existingDbSkus = await _context.ProductVariants
+                .Where(v => incomingSkus.Contains(v.Sku))
+                .Select(v => v.Sku)
+                .ToListAsync();
 
-            var duplicateDbSku = await _context.ProductVariants.AnyAsync(v => incomingSkus.Contains(v.Sku));
-            if (duplicateDbSku)
+            if (existingDbSkus.Any())
             {
-                return BadRequest("One or more SKUs provided are already assigned to existing inventory items.");
+                return BadRequest(new { 
+                    message = $"One or more SKUs provided are already assigned to existing inventory items: {string.Join(", ", existingDbSkus)}" 
+                });
             }
 
             var uploadedFilePaths = new List<string>();
@@ -448,6 +496,7 @@ namespace Ecomerce_dotnet.Controllers
                         Size = item.Size,
                         PhysicalQuantity = item.Quantity,
                         ReservedQuantity = 0,
+                        CostPrice = item.UnitCost,
                         Sku = item.Sku
                     };
 
@@ -459,6 +508,7 @@ namespace Ecomerce_dotnet.Controllers
                         {
                             ProductVariantId = variant.Id,
                             QuantityChanged = variant.PhysicalQuantity,
+                            UnitCost = item.UnitCost,
                             MovementType = StockMovementType.Restock,
                             ChangedBy = GetUserEmail(),
                             CreatedAt = DateTime.UtcNow
@@ -743,6 +793,7 @@ namespace Ecomerce_dotnet.Controllers
                 Size = dto.Size,
                 PhysicalQuantity = dto.InitialPhysicalQuantity,
                 ReservedQuantity = 0,
+                CostPrice = dto.UnitCost,
                 Sku = dto.Sku
             };
 
@@ -754,6 +805,7 @@ namespace Ecomerce_dotnet.Controllers
                 {
                     ProductVariantId = variant.Id,
                     QuantityChanged = variant.PhysicalQuantity,
+                    UnitCost = dto.UnitCost,
                     MovementType = StockMovementType.Restock,
                     ChangedBy = GetUserEmail(),
                     CreatedAt = DateTime.UtcNow
@@ -858,24 +910,103 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(new { message = "Primary image status reassigned successfully, and catalog caches synchronized." });
         }
 
-        private async Task InvalidateProductCacheAsync(Guid categoryId)
+        // ========================================================
+        // 11. DELETE: api/products/images/{imageId} (Delete Single Product Image)
+        // ========================================================
+        [HttpDelete("images/{imageId}")]
+        // [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteProductImage(Guid imageId)
         {
-            var defaultKeys = new List<string>
-            {
-                "products:cat=:disc=:q=:p=1:sz=10",
-                "products:cat=:disc=False:q=:p=1:sz=10",
-                "products:cat=:disc=True:q=:p=1:sz=10",
-                $"products:cat={categoryId}:disc=:q=:p=1:sz=10",
-                $"products:cat={categoryId}:disc=False:q=:p=1:sz=10",
-                $"products:cat={categoryId}:disc=True:q=:p=1:sz=10"
-            };
+            // 1. Find & Validate target product image
+            var image = await _context.ProductImages
+                .Include(img => img.Product)
+                .FirstOrDefaultAsync(img => img.Id == imageId);
 
-            foreach (var key in defaultKeys)
+            if (image == null)
             {
-                await _cache.RemoveAsync(key);
+                return NotFound("Target product image asset not found.");
             }
 
-            Console.WriteLine($"[Redis Cache] Invalidated key sets for Category container: {categoryId}");
+            // 2. Physical File Cleanup
+            if (!string.IsNullOrEmpty(image.ImageUrl))
+            {
+                try
+                {
+                    _fileService.DeletePhysicalFile(image.ImageUrl);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WARNING] Failed to delete physical image file '{image.ImageUrl}' for imageId '{imageId}': {ex.Message}");
+                }
+            }
+
+            // 3. Primary Image Reassignment (if deleting current primary image)
+            if (image.IsPrimary)
+            {
+                var nextPrimaryImage = await _context.ProductImages
+                    .FirstOrDefaultAsync(img => img.ProductId == image.ProductId && img.Id != imageId);
+
+                if (nextPrimaryImage != null)
+                {
+                    nextPrimaryImage.IsPrimary = true;
+                }
+            }
+
+            // 4. Database Purge
+            _context.ProductImages.Remove(image);
+            await _context.SaveChangesAsync();
+
+            // 5. Cache Invalidation
+            if (image.Product != null)
+            {
+                await InvalidateProductCacheAsync(image.Product.CategoryId);
+            }
+
+            // 6. Response
+            return Ok(new { message = "Product image deleted successfully.", imageId });
+        }
+
+        private async Task InvalidateProductCacheAsync(Guid categoryId)
+        {
+            try
+            {
+                var defaultKeys = new List<string>();
+
+                string[] cats = new string[] { "", categoryId.ToString() };
+                bool?[] discs = new bool?[] { null, false, true };
+                int[] pageSizes = new int[] { 10, 20, 50 };
+                int[] pageNumbers = new int[] { 1, 2, 3, 4, 5 };
+
+                foreach (var cat in cats)
+                {
+                    foreach (var disc in discs)
+                    {
+                        foreach (var sz in pageSizes)
+                        {
+                            foreach (var p in pageNumbers)
+                            {
+                                defaultKeys.Add($"products:cat={cat}:brand=:disc={disc}:q=:minp=:maxp=:gen=:p={p}:sz={sz}");
+                                defaultKeys.Add($"products:cat={cat}:disc={disc}:q=:p={p}:sz={sz}");
+                            }
+                        }
+                    }
+                }
+
+                defaultKeys.Add("products:top-selling:count=5");
+                defaultKeys.Add("products:top-selling:count=10");
+                defaultKeys.Add("products:top-selling:count=20");
+
+                foreach (var key in defaultKeys)
+                {
+                    await _cache.RemoveAsync(key);
+                }
+
+                Console.WriteLine($"[Redis Cache] Invalidated key sets for Category container: {categoryId}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Redis Cache WARNING] Failed to invalidate cache for category {categoryId}: {ex.Message}");
+            }
         }
 
         private string GetUserEmail()

@@ -1,4 +1,4 @@
-﻿namespace Ecomerce_dotnet.Models
+namespace Ecomerce_dotnet.Models
 {
     public class OrderItem
     {
@@ -12,6 +12,6 @@
 
         public int Quantity { get; set; }
         public decimal PriceAtPurchase { get; set; } // Snapshot price
-  
+        public decimal UnitCost { get; set; } // Snapshot supplier unit purchase cost
     }
 }

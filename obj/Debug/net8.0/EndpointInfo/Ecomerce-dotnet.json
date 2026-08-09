@@ -684,6 +684,23 @@
         "tags": [
           "Categories"
         ],
+        "parameters": [
+          {
+            "name": "rootOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "parentCategoryId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -698,14 +715,22 @@
           "content": {
             "multipart/form-data": {
               "schema": {
+                "required": [
+                  "Name"
+                ],
                 "type": "object",
                 "properties": {
                   "Name": {
+                    "maxLength": 100,
                     "type": "string"
                   },
                   "Image": {
                     "type": "string",
                     "format": "binary"
+                  },
+                  "ParentCategoryId": {
+                    "type": "string",
+                    "format": "uuid"
                   }
                 }
               },
@@ -715,11 +740,26 @@
                 },
                 "Image": {
                   "style": "form"
+                },
+                "ParentCategoryId": {
+                  "style": "form"
                 }
               }
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Categories/tree": {
+      "get": {
+        "tags": [
+          "Categories"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -768,14 +808,22 @@
           "content": {
             "multipart/form-data": {
               "schema": {
+                "required": [
+                  "Name"
+                ],
                 "type": "object",
                 "properties": {
                   "Name": {
+                    "maxLength": 100,
                     "type": "string"
                   },
                   "Image": {
                     "type": "string",
                     "format": "binary"
+                  },
+                  "ParentCategoryId": {
+                    "type": "string",
+                    "format": "uuid"
                   }
                 }
               },
@@ -784,6 +832,9 @@
                   "style": "form"
                 },
                 "Image": {
+                  "style": "form"
+                },
+                "ParentCategoryId": {
                   "style": "form"
                 }
               }
@@ -1217,32 +1268,286 @@
         }
       }
     },
-    "/api/Payment/check-status/{orderId}": {
+    "/api/generate-khqr": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateKhqrRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateKhqrRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateKhqrRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Payment/generate-khqr": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateKhqrRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateKhqrRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateKhqrRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/qr-image/{invoice}": {
+      "get": {
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "name": "invoice",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Payment/qr-image/{invoice}": {
+      "get": {
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "name": "invoice",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/check-payment/{invoice}": {
+      "get": {
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "name": "invoice",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
       "post": {
         "tags": [
           "Payment"
         ],
         "parameters": [
           {
-            "name": "orderId",
+            "name": "invoice",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "type": "string"
             }
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { }
+              "schema": {
+                "$ref": "#/components/schemas/CheckPaymentRequestDto"
+              }
             },
             "text/json": {
-              "schema": { }
+              "schema": {
+                "$ref": "#/components/schemas/CheckPaymentRequestDto"
+              }
             },
             "application/*+json": {
-              "schema": { }
+              "schema": {
+                "$ref": "#/components/schemas/CheckPaymentRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Payment/check-payment/{invoice}": {
+      "get": {
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "name": "invoice",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "name": "invoice",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckPaymentRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckPaymentRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckPaymentRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/generate_deeplink_by_qr": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateDeeplinkRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateDeeplinkRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateDeeplinkRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Payment/generate-deeplink": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateDeeplinkRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateDeeplinkRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateDeeplinkRequestDto"
+              }
             }
           }
         },
@@ -1831,6 +2136,29 @@
         }
       }
     },
+    "/api/Products/images/{imageId}": {
+      "delete": {
+        "tags": [
+          "Products"
+        ],
+        "parameters": [
+          {
+            "name": "imageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/ReturnRequests/request": {
       "post": {
         "tags": [
@@ -1952,6 +2280,523 @@
       "get": {
         "tags": [
           "ReturnRequests"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Shop/profile": {
+      "get": {
+        "tags": [
+          "Shop"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Shop"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "ShopName"
+                ],
+                "type": "object",
+                "properties": {
+                  "ShopName": {
+                    "maxLength": 150,
+                    "type": "string"
+                  },
+                  "Description": {
+                    "maxLength": 1000,
+                    "type": "string"
+                  },
+                  "Email": {
+                    "maxLength": 150,
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "Phone": {
+                    "maxLength": 50,
+                    "type": "string",
+                    "format": "tel"
+                  },
+                  "Address": {
+                    "maxLength": 300,
+                    "type": "string"
+                  },
+                  "GoogleMapUrl": {
+                    "maxLength": 1000,
+                    "type": "string"
+                  },
+                  "Latitude": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "Longitude": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "OpeningHours": {
+                    "maxLength": 150,
+                    "type": "string"
+                  },
+                  "LogoImage": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "ShopName": {
+                  "style": "form"
+                },
+                "Description": {
+                  "style": "form"
+                },
+                "Email": {
+                  "style": "form"
+                },
+                "Phone": {
+                  "style": "form"
+                },
+                "Address": {
+                  "style": "form"
+                },
+                "GoogleMapUrl": {
+                  "style": "form"
+                },
+                "Latitude": {
+                  "style": "form"
+                },
+                "Longitude": {
+                  "style": "form"
+                },
+                "OpeningHours": {
+                  "style": "form"
+                },
+                "LogoImage": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Shop"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "ShopName"
+                ],
+                "type": "object",
+                "properties": {
+                  "ShopName": {
+                    "maxLength": 150,
+                    "type": "string"
+                  },
+                  "Description": {
+                    "maxLength": 1000,
+                    "type": "string"
+                  },
+                  "Email": {
+                    "maxLength": 150,
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "Phone": {
+                    "maxLength": 50,
+                    "type": "string",
+                    "format": "tel"
+                  },
+                  "Address": {
+                    "maxLength": 300,
+                    "type": "string"
+                  },
+                  "GoogleMapUrl": {
+                    "maxLength": 1000,
+                    "type": "string"
+                  },
+                  "Latitude": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "Longitude": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "OpeningHours": {
+                    "maxLength": 150,
+                    "type": "string"
+                  },
+                  "LogoImage": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "ShopName": {
+                  "style": "form"
+                },
+                "Description": {
+                  "style": "form"
+                },
+                "Email": {
+                  "style": "form"
+                },
+                "Phone": {
+                  "style": "form"
+                },
+                "Address": {
+                  "style": "form"
+                },
+                "GoogleMapUrl": {
+                  "style": "form"
+                },
+                "Latitude": {
+                  "style": "form"
+                },
+                "Longitude": {
+                  "style": "form"
+                },
+                "OpeningHours": {
+                  "style": "form"
+                },
+                "LogoImage": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Shop/location": {
+      "get": {
+        "tags": [
+          "Shop"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Shop"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopLocationDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopLocationDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopLocationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Shop"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopLocationDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopLocationDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopLocationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Shop/contacts": {
+      "get": {
+        "tags": [
+          "Shop"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Shop"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "IconImage",
+                  "ProfileUrl",
+                  "Title"
+                ],
+                "type": "object",
+                "properties": {
+                  "Title": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "ProfileUrl": {
+                    "maxLength": 500,
+                    "type": "string"
+                  },
+                  "IconImage": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "ContactType": {
+                    "maxLength": 50,
+                    "type": "string"
+                  },
+                  "DisplayOrder": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "IsActive": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "encoding": {
+                "Title": {
+                  "style": "form"
+                },
+                "ProfileUrl": {
+                  "style": "form"
+                },
+                "IconImage": {
+                  "style": "form"
+                },
+                "ContactType": {
+                  "style": "form"
+                },
+                "DisplayOrder": {
+                  "style": "form"
+                },
+                "IsActive": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Shop/contacts/admin": {
+      "get": {
+        "tags": [
+          "Shop"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Shop/contacts/{id}": {
+      "get": {
+        "tags": [
+          "Shop"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Shop"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "ProfileUrl",
+                  "Title"
+                ],
+                "type": "object",
+                "properties": {
+                  "Title": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "ProfileUrl": {
+                    "maxLength": 500,
+                    "type": "string"
+                  },
+                  "IconImage": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "ContactType": {
+                    "maxLength": 50,
+                    "type": "string"
+                  },
+                  "DisplayOrder": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "IsActive": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "encoding": {
+                "Title": {
+                  "style": "form"
+                },
+                "ProfileUrl": {
+                  "style": "form"
+                },
+                "IconImage": {
+                  "style": "form"
+                },
+                "ContactType": {
+                  "style": "form"
+                },
+                "DisplayOrder": {
+                  "style": "form"
+                },
+                "IsActive": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Shop"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Shop/contacts/{id}/toggle-active": {
+      "patch": {
+        "tags": [
+          "Shop"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -2210,6 +3055,32 @@
         "type": "integer",
         "format": "int32"
       },
+      "CheckPaymentRequestDto": {
+        "type": "object",
+        "properties": {
+          "qr_md5": {
+            "type": "string",
+            "nullable": true
+          },
+          "qrMd5": {
+            "type": "string",
+            "nullable": true
+          },
+          "md5": {
+            "type": "string",
+            "nullable": true
+          },
+          "invoice": {
+            "type": "string",
+            "nullable": true
+          },
+          "orderId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ColorGroupCreateDto": {
         "required": [
           "color"
@@ -2225,6 +3096,42 @@
             "items": {
               "$ref": "#/components/schemas/SizeStockCreateDto"
             },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GenerateDeeplinkRequestDto": {
+        "type": "object",
+        "properties": {
+          "qrString": {
+            "type": "string",
+            "nullable": true
+          },
+          "qr": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GenerateKhqrRequestDto": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string",
             "nullable": true
           }
         },
@@ -2472,6 +3379,37 @@
         },
         "additionalProperties": false
       },
+      "ShopLocationDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "maxLength": 300,
+            "type": "string",
+            "nullable": true
+          },
+          "googleMapUrl": {
+            "maxLength": 1000,
+            "type": "string",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "openingHours": {
+            "maxLength": 150,
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "SizeStockCreateDto": {
         "required": [
           "physicalQuantity",
@@ -2488,6 +3426,12 @@
             "minimum": 0,
             "type": "integer",
             "format": "int32"
+          },
+          "unitCost": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": "number",
+            "format": "double"
           },
           "sku": {
             "type": "string",
@@ -2506,6 +3450,10 @@
           "quantity": {
             "type": "integer",
             "format": "int32"
+          },
+          "unitCost": {
+            "type": "number",
+            "format": "double"
           },
           "reasonCode": {
             "type": "string",
@@ -2670,6 +3618,12 @@
             "minimum": 0,
             "type": "integer",
             "format": "int32"
+          },
+          "unitCost": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": "number",
+            "format": "double"
           },
           "sku": {
             "minLength": 1,
