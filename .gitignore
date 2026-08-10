@@ -1,0 +1,39 @@
+﻿## --- Build & Output Directories ---
+[Bb]in/
+[Oo]bj/
+out/
+[LLEe]og/
+[Ll]ogs/
+
+## --- Visual Studio & IDE Files ---
+.vs/
+.idea/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+## --- User Specific Configuration & Environment Files ---
+# Ignore environment override files containing sensitive keys/passwords
+.env
+.env.*
+!.env.example
+
+# Ignore local application settings overrides
+appsettings.Development.json
+appsettings.Local.json
+appsettings.Production.json
+appsettings.*.json
+!appsettings.json
+
+## --- Operating System Files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## --- Docker / Local Containers ---
+# Ignores persistent data folders if created locally by SQL Server or Redis
+.docker/
+docker-data/
+ms-sql-data/
+redis-data/
