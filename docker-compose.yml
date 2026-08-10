@@ -19,7 +19,18 @@ services:
     ports:
       - "80:80"
     environment:
+      # Overrides ConnectionStrings:DefaultConnection in appsettings.json
       - ConnectionStrings__DefaultConnection=Server=database;Database=EcommerceDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True
+      
+      # Overrides JwtSettings:Key
+      - JwtSettings__Key=${JWT_KEY}
+      
+      # Overrides BakongSettings:Token
+      - BakongSettings__Token=${BAKONG_TOKEN}
+      
+      # Overrides Telegram:BotToken
+      - Telegram__BotToken=${TELEGRAM_BOT_TOKEN}
+      
       - Redis__ConnectionString=redis:6379
     depends_on:
       - database
