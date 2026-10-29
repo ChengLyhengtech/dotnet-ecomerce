@@ -1,6 +1,4 @@
-﻿version: '3.8'
-
-services:
+﻿services:
   database:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -17,21 +15,14 @@ services:
   backend:
     build: .
     ports:
-      - "80:80"
+      - "5000:80"
     environment:
-      # Overrides ConnectionStrings:DefaultConnection in appsettings.json
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=database;Database=EcommerceDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True
-      
-      # Overrides JwtSettings:Key
+      - ConnectionStrings__RedisConnection=redis:6379
       - JwtSettings__Key=${JWT_KEY}
-      
-      # Overrides BakongSettings:Token
       - BakongSettings__Token=${BAKONG_TOKEN}
-      
-      # Overrides Telegram:BotToken
       - Telegram__BotToken=${TELEGRAM_BOT_TOKEN}
-      
-      - Redis__ConnectionString=redis:6379
     depends_on:
       - database
       - redis

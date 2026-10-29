@@ -44,6 +44,7 @@ namespace Ecomerce_dotnet.DTOs
         public string Size { get; set; } = string.Empty;
         public int AvailableStock { get; set; }
         public decimal CostPrice { get; set; }
+        public decimal UnitCost => CostPrice;
         public string Sku { get; set; } = string.Empty;
     }
 

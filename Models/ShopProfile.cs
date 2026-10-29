@@ -15,6 +15,7 @@ namespace Ecomerce_dotnet.Models
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public string? OpeningHours { get; set; }
+        public int OrderCancellationWindowHours { get; set; } = 6;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }

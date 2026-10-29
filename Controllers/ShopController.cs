@@ -77,6 +77,10 @@ namespace Ecomerce_dotnet.Controllers
             profile.Latitude = dto.Latitude ?? profile.Latitude;
             profile.Longitude = dto.Longitude ?? profile.Longitude;
             profile.OpeningHours = dto.OpeningHours ?? profile.OpeningHours;
+            if (dto.OrderCancellationWindowHours.HasValue)
+            {
+                profile.OrderCancellationWindowHours = dto.OrderCancellationWindowHours.Value;
+            }
 
             // Handle Logo File Upload
             if (dto.LogoImage != null && dto.LogoImage.Length > 0)
@@ -335,6 +339,7 @@ namespace Ecomerce_dotnet.Controllers
                     Latitude = 11.5564,
                     Longitude = 104.9282,
                     OpeningHours = "Mon - Sun: 8:00 AM - 8:00 PM",
+                    OrderCancellationWindowHours = 6,
                     UpdatedAt = DateTime.UtcNow
                 };
                 _context.ShopProfiles.Add(profile);
@@ -380,6 +385,7 @@ namespace Ecomerce_dotnet.Controllers
                 Latitude = profile.Latitude,
                 Longitude = profile.Longitude,
                 OpeningHours = profile.OpeningHours,
+                OrderCancellationWindowHours = profile.OrderCancellationWindowHours,
                 UpdatedAt = profile.UpdatedAt,
                 Contacts = contacts
             };

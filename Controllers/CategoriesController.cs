@@ -1,8 +1,10 @@
 using Ecomerce_dotnet.Data;
 using Ecomerce_dotnet.DTOs;
+using Ecomerce_dotnet.Filters;
 using Ecomerce_dotnet.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System;
@@ -15,6 +17,7 @@ namespace Ecomerce_dotnet.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("ApiPolicy")]
     public class CategoriesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -162,7 +165,7 @@ namespace Ecomerce_dotnet.Controllers
         // 4. POST: api/categories (Create Root or Sub-Category)
         // ========================================================
         [HttpPost]
-        [Authorize(Roles = "Admin,Manager")]
+        [HasPermission("categories:create")]
         public async Task<IActionResult> Create([FromForm] CategoryCreateDto dto)
         {
             // Validate Parent Category if provided
@@ -200,7 +203,7 @@ namespace Ecomerce_dotnet.Controllers
         // 5. PUT: api/categories/{id} (Update Category)
         // ========================================================
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin,Manager")]
+        [HasPermission("categories:update")]
         public async Task<IActionResult> Update(Guid id, [FromForm] CategoryUpdateDto dto)
         {
             var category = await _context.Categories.FindAsync(id);
@@ -251,7 +254,7 @@ namespace Ecomerce_dotnet.Controllers
         // 6. DELETE: api/categories/{id} (Delete Category)
         // ========================================================
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin,Manager")]
+        [HasPermission("categories:delete")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var category = await _context.Categories

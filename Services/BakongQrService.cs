@@ -42,7 +42,7 @@ namespace Ecomerce_dotnet.Services
             string? storeLabel = null,
             string? terminalLabel = null,
             string? merchantCategoryCode = null,
-            int expirationMinutes = 30)
+            int expirationMinutes = 15)
         {
             var khqrCurrency = currency.ToUpper() == "USD"
                 ? BakongModel.KHQRCurrency.USD
@@ -89,7 +89,7 @@ namespace Ecomerce_dotnet.Services
             string merchantCity,
             decimal amount,
             string currency,
-            int expirationMinutes = 30)
+            int expirationMinutes = 15)
         {
             var khqrCurrency = currency.ToUpper() == "USD"
                 ? BakongModel.KHQRCurrency.USD

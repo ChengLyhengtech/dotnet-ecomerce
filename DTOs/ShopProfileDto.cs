@@ -16,6 +16,7 @@ namespace Ecomerce_dotnet.DTOs
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public string? OpeningHours { get; set; }
+        public int OrderCancellationWindowHours { get; set; } = 6;
         public DateTime UpdatedAt { get; set; }
         public List<ShopContactResponseDto> Contacts { get; set; } = new List<ShopContactResponseDto>();
     }
@@ -48,6 +49,9 @@ namespace Ecomerce_dotnet.DTOs
 
         [MaxLength(150)]
         public string? OpeningHours { get; set; }
+
+        [Range(1, 168, ErrorMessage = "Cancellation window must be between 1 and 168 hours.")]
+        public int? OrderCancellationWindowHours { get; set; }
 
         public IFormFile? LogoImage { get; set; }
     }

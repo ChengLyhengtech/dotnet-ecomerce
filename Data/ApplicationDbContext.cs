@@ -5,12 +5,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ecomerce_dotnet.Data
 {
-    public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
+    public class ApplicationDbContext : IdentityDbContext<
+        User,
+        Role,
+        Guid,
+        IdentityUserClaim<Guid>,
+        UserRole,
+        IdentityUserLogin<Guid>,
+        IdentityRoleClaim<Guid>,
+        IdentityUserToken<Guid>>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
-        // NOTE: IdentityDbContext already includes a DbSet for Users. 
-        // You don't strictly need to declare it again, but it doesn't hurt.
+        // RBAC & Permission Entities
+        public DbSet<Permission> Permissions { get; set; }
+        public DbSet<RolePermission> RolePermissions { get; set; }
+
+        // NOTE: IdentityDbContext already includes DbSets for Users, Roles, UserRoles, etc.
         public DbSet<Category> Categories { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductVariant> ProductVariants { get; set; }
@@ -29,6 +40,7 @@ namespace Ecomerce_dotnet.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<ShopProfile> ShopProfiles { get; set; }
         public DbSet<ShopContact> ShopContacts { get; set; }
+        public DbSet<ProductReview> ProductReviews { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -146,6 +158,84 @@ namespace Ecomerce_dotnet.Data
                 .WithMany(c => c.SubCategories)
                 .HasForeignKey(c => c.ParentCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // 8. Configure RBAC - UserRole (Many-to-Many junction between User and Role)
+            modelBuilder.Entity<UserRole>(b =>
+            {
+                b.HasKey(ur => new { ur.UserId, ur.RoleId });
+
+                b.HasOne(ur => ur.User)
+                    .WithMany(u => u.UserRoles)
+                    .HasForeignKey(ur => ur.UserId)
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(ur => ur.Role)
+                    .WithMany(r => r.UserRoles)
+                    .HasForeignKey(ur => ur.RoleId)
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.ToTable("AspNetUserRoles");
+            });
+
+            // 9. Configure RBAC - RolePermission (Many-to-Many junction between Role and Permission)
+            modelBuilder.Entity<RolePermission>(b =>
+            {
+                b.HasKey(rp => new { rp.RoleId, rp.PermissionId });
+
+                b.HasOne(rp => rp.Role)
+                    .WithMany(r => r.RolePermissions)
+                    .HasForeignKey(rp => rp.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(rp => rp.Permission)
+                    .WithMany(p => p.RolePermissions)
+                    .HasForeignKey(rp => rp.PermissionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.ToTable("RolePermissions");
+            });
+
+            // 10. Configure RBAC - Permission Entity
+            modelBuilder.Entity<Permission>(b =>
+            {
+                b.HasKey(p => p.Id);
+                b.Property(p => p.Name).IsRequired().HasMaxLength(100);
+                b.Property(p => p.Category).IsRequired().HasMaxLength(100);
+                b.Property(p => p.Description).HasMaxLength(250);
+                b.HasIndex(p => p.Name).IsUnique();
+                b.ToTable("Permissions");
+            });
+
+            // 11. Configure RBAC - Role Entity
+            modelBuilder.Entity<Role>(b =>
+            {
+                b.Property(r => r.Description).HasMaxLength(250);
+            });
+
+            // 12. Configure ProductReview Entity & Relationships
+            modelBuilder.Entity<ProductReview>(b =>
+            {
+                b.HasKey(pr => pr.Id);
+                b.Property(pr => pr.Rating).IsRequired();
+                b.Property(pr => pr.Comment).HasMaxLength(1000);
+
+                b.HasOne(pr => pr.Product)
+                    .WithMany(p => p.Reviews)
+                    .HasForeignKey(pr => pr.ProductId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(pr => pr.User)
+                    .WithMany()
+                    .HasForeignKey(pr => pr.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(pr => pr.Order)
+                    .WithMany()
+                    .HasForeignKey(pr => pr.OrderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
         }
     }
 }

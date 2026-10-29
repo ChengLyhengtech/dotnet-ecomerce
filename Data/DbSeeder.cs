@@ -12,26 +12,132 @@ namespace Ecomerce_dotnet.Data
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             using var scope = serviceProvider.CreateScope();
-            var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+            var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<Role>>();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DbSeeder");
 
-            // 1. Seed System Roles
-            string[] roles = { "Admin", "Manager", "Customer" };
-
-            foreach (var roleName in roles)
+            // 1. Seed System Permissions
+            var systemPermissions = new List<(string Name, string Category, string Description)>
             {
-                if (!await roleManager.RoleExistsAsync(roleName))
+                // Products
+                ("products:read", "Products", "View products and product details"),
+                ("products:create", "Products", "Create new products and variants"),
+                ("products:update", "Products", "Update existing products"),
+                ("products:delete", "Products", "Delete products and variants"),
+
+                // Categories & Brands
+                ("categories:read", "Categories", "View categories"),
+                ("categories:create", "Categories", "Create new categories"),
+                ("categories:update", "Categories", "Update existing categories"),
+                ("categories:delete", "Categories", "Delete categories"),
+                ("categories:manage", "Categories", "Full category management"),
+                ("brands:read", "Brands", "View brands"),
+                ("brands:create", "Brands", "Create new brands"),
+                ("brands:update", "Brands", "Update existing brands"),
+                ("brands:delete", "Brands", "Delete brands"),
+                ("brands:manage", "Brands", "Full brand management"),
+
+                // Orders
+                ("orders:read", "Orders", "View customer orders and histories"),
+                ("orders:manage", "Orders", "Update order status and handle cancellations"),
+                ("orders:review", "Orders", "Review and audit order logs"),
+
+                // Inventory
+                ("inventory:read", "Inventory", "View inventory stock levels and logs"),
+                ("inventory:manage", "Inventory", "Update stock levels and log movements"),
+
+                // Return Requests
+                ("returns:read", "Returns", "View return requests"),
+                ("returns:manage", "Returns", "Approve or reject customer return requests"),
+
+                // Banners & Notifications
+                ("banners:read", "Banners", "View banners"),
+                ("banners:create", "Banners", "Create new banners"),
+                ("banners:update", "Banners", "Update banners and toggle active status"),
+                ("banners:delete", "Banners", "Delete banners"),
+                ("banners:manage", "Banners", "Full banner management"),
+                ("notifications:manage", "Notifications", "Broadcast notifications"),
+
+                // Users & Roles
+                ("users:read", "Users", "View user accounts"),
+                ("users:manage", "Users", "Create and edit user accounts"),
+                ("users:ban", "Users", "Ban and unban users"),
+                ("roles:read", "Roles", "View roles and assigned permissions"),
+                ("roles:manage", "Roles", "Create, update, delete roles and configure permissions"),
+
+                // Dashboard & Reports
+                ("dashboard:read", "Dashboard", "View analytical dashboard metrics and reports")
+            };
+
+            foreach (var (name, category, description) in systemPermissions)
+            {
+                if (!await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(context.Permissions, p => p.Name == name))
                 {
-                    var result = await roleManager.CreateAsync(new IdentityRole<Guid> { Name = roleName });
+                    context.Permissions.Add(new Permission
+                    {
+                        Name = name,
+                        Category = category,
+                        Description = description
+                    });
+                }
+            }
+            await context.SaveChangesAsync();
+
+            // 2. Seed System Roles
+            var systemRoles = new Dictionary<string, (string Description, string[] Permissions)>
+            {
+                ["Admin"] = ("Full administrative access with all permissions", systemPermissions.Select(p => p.Name).ToArray()),
+                ["Manager"] = ("Store operations manager with catalog, order, inventory, and return permissions", new[]
+                {
+                    "products:read", "products:create", "products:update",
+                    "categories:read", "categories:create", "categories:update", "categories:manage",
+                    "brands:read", "brands:create", "brands:update", "brands:manage",
+                    "orders:read", "orders:manage", "orders:review",
+                    "inventory:read", "inventory:manage",
+                    "returns:read", "returns:manage",
+                    "banners:read", "banners:create", "banners:update", "banners:manage",
+                    "dashboard:read"
+                }),
+             
+            };
+
+            foreach (var (roleName, (desc, perms)) in systemRoles)
+            {
+                var role = await roleManager.FindByNameAsync(roleName);
+                if (role == null)
+                {
+                    role = new Role(roleName) { Description = desc };
+                    var result = await roleManager.CreateAsync(role);
                     if (result.Succeeded)
                     {
                         logger.LogInformation("Role '{Role}' created successfully.", roleName);
                     }
                 }
-            }
 
-            // 2. Seed Default Admin Account
+                // Sync Permissions for this role
+                if (role != null)
+                {
+                    var existingRolePermIds = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                        context.RolePermissions.Where(rp => rp.RoleId == role.Id).Select(rp => rp.PermissionId));
+
+                    var targetPermissionIds = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                        context.Permissions.Where(p => perms.Contains(p.Name)).Select(p => p.Id));
+
+                    var missingPermIds = targetPermissionIds.Except(existingRolePermIds).ToList();
+                    foreach (var permId in missingPermIds)
+                    {
+                        context.RolePermissions.Add(new RolePermission
+                        {
+                            RoleId = role.Id,
+                            PermissionId = permId
+                        });
+                    }
+                }
+            }
+            await context.SaveChangesAsync();
+
+            // 3. Seed Default Admin Account
             var adminEmail = "admin@ecommerce.com";
             var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
@@ -59,7 +165,7 @@ namespace Ecomerce_dotnet.Data
                 }
             }
 
-            // 3. Seed Default Manager Account
+            // 4. Seed Default Manager Account
             var managerEmail = "manager@ecommerce.com";
             var managerUser = await userManager.FindByEmailAsync(managerEmail);
 
@@ -86,8 +192,7 @@ namespace Ecomerce_dotnet.Data
                     logger.LogError("Failed to seed Manager account: {Errors}", string.Join(", ", createManagerResult.Errors));
                 }
             }
-            // 4. Seed Default Shop Profile & Contacts
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            // 5. Seed Default Shop Profile & Contacts
             if (!await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(context.ShopProfiles))
             {
                 var defaultProfile = new ShopProfile

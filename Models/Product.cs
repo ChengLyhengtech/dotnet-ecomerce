@@ -18,6 +18,9 @@ namespace Ecomerce_dotnet.Models
         // Relationship: One product has many variants (Sizes/Colors)
         public List<ProductVariant> Variants { get; set; } = new();
 
+        // Relationship: One product has many reviews
+        public List<ProductReview> Reviews { get; set; } = new();
+
         // Target Demographic Bitwise Flags (e.g. Women | Girls)
         public TargetGender TargetGender { get; set; } = TargetGender.Unisex;
 

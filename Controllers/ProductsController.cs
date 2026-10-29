@@ -1,8 +1,10 @@
 using Ecomerce_dotnet.Data;
 using Ecomerce_dotnet.DTOs;
+using Ecomerce_dotnet.Filters;
 using Ecomerce_dotnet.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
@@ -11,6 +13,7 @@ namespace Ecomerce_dotnet.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("ApiPolicy")]
     public class ProductsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -367,7 +370,7 @@ namespace Ecomerce_dotnet.Controllers
 
         // 5. POST: api/products (Administrative Product Provisioning)
         [HttpPost]
-        //[Authorize(Roles = "Admin")]
+        [HasPermission("products:create")]
         public async Task<IActionResult> Create([FromForm] ProductCreateDto dto)
         {
             var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
@@ -564,7 +567,7 @@ namespace Ecomerce_dotnet.Controllers
 
         // 3. PUT: api/products/{id} (Administrative details modification)
         [HttpPut("{id}")]
-        // Enforces professional access rules
+        [HasPermission("products:update")]
         public async Task<IActionResult> Update(Guid id, [FromBody] ProductUpdateDto dto)
         {
             var product = await _context.Products
@@ -613,7 +616,7 @@ namespace Ecomerce_dotnet.Controllers
 
         // 4. DELETE: api/products/{id} (Professional Soft Delete)
         [HttpDelete("{id}")]
-        
+        [HasPermission("products:delete")]
         public async Task<IActionResult> SoftDelete(Guid id)
         {
             var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
@@ -643,7 +646,7 @@ namespace Ecomerce_dotnet.Controllers
         // 6. PUT: api/products/variants/{variantId} (Modify Specific Color/Size Variant)
         // ========================================================
         [HttpPut("variants/{variantId}")]
-        // [Authorize(Roles = "Admin")]
+        [HasPermission("products:update")]
         public async Task<IActionResult> UpdateVariant(Guid variantId, [FromBody] ProductVariantUpdateDto dto)
         {
             // 1. Fetch the target variant to modify
@@ -680,6 +683,16 @@ namespace Ecomerce_dotnet.Controllers
             variant.Size = dto.Size;
             variant.PhysicalQuantity = dto.PhysicalQuantity;
             variant.Sku = dto.Sku;
+
+            if (dto.CostPrice.HasValue)
+            {
+                variant.CostPrice = dto.CostPrice.Value;
+            }
+            else if (dto.UnitCost.HasValue)
+            {
+                variant.CostPrice = dto.UnitCost.Value;
+            }
+
             // ReservedQuantity is managed by checkout rules, leave it out of raw admin updates!
 
             if (quantityDifference != 0)
@@ -688,6 +701,7 @@ namespace Ecomerce_dotnet.Controllers
                 {
                     ProductVariantId = variant.Id,
                     QuantityChanged = quantityDifference,
+                    UnitCost = variant.CostPrice,
                     MovementType = StockMovementType.AuditCorrection,
                     ChangedBy = GetUserEmail(),
                     CreatedAt = DateTime.UtcNow
@@ -707,7 +721,7 @@ namespace Ecomerce_dotnet.Controllers
         // 7. DELETE: api/products/variants/{variantId} (Remove Specific Color/Size Variant Completely)
         // ========================================================
         [HttpDelete("variants/{variantId}")]
-        // [Authorize(Roles = "Admin")]
+        [HasPermission("products:delete")]
         public async Task<IActionResult> DeleteVariant(Guid variantId)
         {
             // 1. Find the target variant
@@ -767,6 +781,7 @@ namespace Ecomerce_dotnet.Controllers
         // 8. POST: api/products/{id}/variants (Append New Variant to Existing Product)
         // ========================================================
         [HttpPost("{id}/variants")]
+        [HasPermission("products:update")]
         public async Task<IActionResult> AddVariantToProduct(Guid id, [FromBody] VariantCreateDto dto)
         {
             // FIXED: Where clause moved before Select projection
@@ -824,6 +839,7 @@ namespace Ecomerce_dotnet.Controllers
         // 9. POST: api/products/{id}/images (Upload/Attach Image to Existing Product or Variant)
         // ========================================================
         [HttpPost("{id}/images")]
+        [HasPermission("products:update")]
         public async Task<IActionResult> UploadProductImage(Guid id, [FromForm] ProductImageUploadDto dto)
         {
             var product = await _context.Products
@@ -867,7 +883,7 @@ namespace Ecomerce_dotnet.Controllers
         // 10. PUT: api/products/images/{imageId}/set-primary
         // ========================================================
         [HttpPut("images/{imageId}/set-primary")]
-        // [Authorize(Roles = "Admin")]
+        [HasPermission("products:update")]
         public async Task<IActionResult> SetPrimaryImage(Guid imageId)
         {
             // 1. Fetch the target image along with its parent Product relationship context
@@ -914,7 +930,7 @@ namespace Ecomerce_dotnet.Controllers
         // 11. DELETE: api/products/images/{imageId} (Delete Single Product Image)
         // ========================================================
         [HttpDelete("images/{imageId}")]
-        // [Authorize(Roles = "Admin")]
+        [HasPermission("products:delete")]
         public async Task<IActionResult> DeleteProductImage(Guid imageId)
         {
             // 1. Find & Validate target product image
@@ -1007,6 +1023,161 @@ namespace Ecomerce_dotnet.Controllers
             {
                 Console.WriteLine($"[Redis Cache WARNING] Failed to invalidate cache for category {categoryId}: {ex.Message}");
             }
+        }
+
+        // ========================================================
+        // 12. POST: api/products/reviews (Customer Review & Rating Submission with Order Status Guard)
+        // ========================================================
+        [HttpPost("reviews")]
+        [Authorize]
+        public async Task<IActionResult> SubmitReview([FromBody] ProductReviewCreateDto dto)
+        {
+            var userId = GetUserId();
+
+            // 1. Verify Order exists and belongs to current user
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.ProductVariant)
+                .FirstOrDefaultAsync(o => o.Id == dto.OrderId);
+
+            if (order == null)
+            {
+                return NotFound("The specified order does not exist.");
+            }
+
+            if (order.UserId != userId)
+            {
+                return Forbid();
+            }
+
+            // 2. Strict Guard: Order status must be Received or Completed
+            var status = order.Status?.Trim();
+            bool isReceivedOrCompleted = string.Equals(status, "Received", StringComparison.OrdinalIgnoreCase) 
+                || string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(status, OrderStatus.Received.ToString(), StringComparison.OrdinalIgnoreCase)
+                || string.Equals(status, OrderStatus.Completed.ToString(), StringComparison.OrdinalIgnoreCase);
+
+            if (!isReceivedOrCompleted)
+            {
+                return BadRequest(new 
+                { 
+                    message = $"Reviews can only be submitted for orders that are 'Received' or 'Completed'. Current order status is '{order.Status}'." 
+                });
+            }
+
+            // 3. Verify Product was purchased in this order
+            var orderItem = order.OrderItems
+                .FirstOrDefault(oi => oi.ProductVariant != null && oi.ProductVariant.ProductId == dto.ProductId);
+
+            if (orderItem == null)
+            {
+                return BadRequest(new { message = "The specified product was not purchased as part of this order." });
+            }
+
+            // 4. Prevent duplicate reviews for the same product in the same order
+            var existingReview = await _context.ProductReviews
+                .AnyAsync(r => r.OrderId == dto.OrderId && r.ProductId == dto.ProductId && r.UserId == userId);
+
+            if (existingReview)
+            {
+                return BadRequest(new { message = "You have already submitted a rating/review for this product in this order." });
+            }
+
+            // 5. Create Review Entity
+            var review = new ProductReview
+            {
+                OrderId = dto.OrderId,
+                ProductId = dto.ProductId,
+                UserId = userId,
+                Rating = dto.Rating,
+                Comment = dto.Comment?.Trim() ?? string.Empty,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.ProductReviews.Add(review);
+
+            // 6. Transition order status from Received to Completed upon successful review submission
+            if (string.Equals(order.Status, "Received", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(order.Status, OrderStatus.Received.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                order.Status = OrderStatus.Completed.ToString();
+            }
+
+            await _context.SaveChangesAsync();
+
+            var user = await _context.Users.FindAsync(userId);
+            var product = await _context.Products.FindAsync(dto.ProductId);
+
+            var response = new ProductReviewResponseDto
+            {
+                Id = review.Id,
+                ProductId = review.ProductId,
+                ProductName = product?.Name ?? "Product",
+                OrderId = review.OrderId,
+                UserId = review.UserId,
+                UserName = user?.FullName ?? user?.UserName ?? "Customer",
+                Rating = review.Rating,
+                Comment = review.Comment,
+                CreatedAt = review.CreatedAt
+            };
+
+            return CreatedAtAction(nameof(GetProductReviews), new { id = dto.ProductId }, response);
+        }
+
+        // ========================================================
+        // 13. GET: api/products/{id}/reviews (Public Product Reviews & Rating Summary)
+        // ========================================================
+        [HttpGet("{id}/reviews")]
+        public async Task<IActionResult> GetProductReviews(Guid id)
+        {
+            var productExists = await _context.Products.AnyAsync(p => p.Id == id && !p.IsDeleted);
+            if (!productExists)
+            {
+                return NotFound("Target product not found.");
+            }
+
+            var reviews = await _context.ProductReviews
+                .Where(r => r.ProductId == id)
+                .Include(r => r.User)
+                .Include(r => r.Product)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new ProductReviewResponseDto
+                {
+                    Id = r.Id,
+                    ProductId = r.ProductId,
+                    ProductName = r.Product != null ? r.Product.Name : string.Empty,
+                    OrderId = r.OrderId,
+                    UserId = r.UserId,
+                    UserName = r.User != null ? (r.User.FullName ?? r.User.UserName ?? "Customer") : "Customer",
+                    Rating = r.Rating,
+                    Comment = r.Comment,
+                    CreatedAt = r.CreatedAt
+                })
+                .ToListAsync();
+
+            double avgRating = reviews.Count > 0 ? Math.Round(reviews.Average(r => r.Rating), 1) : 0.0;
+
+            var result = new ProductReviewsSummaryDto
+            {
+                ProductId = id,
+                AverageRating = avgRating,
+                TotalReviews = reviews.Count,
+                Reviews = reviews
+            };
+
+            return Ok(result);
+        }
+
+        private Guid GetUserId()
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? User.FindFirst("userId")?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                throw new UnauthorizedAccessException("User context is invalid or token missing.");
+            }
+            return userId;
         }
 
         private string GetUserEmail()

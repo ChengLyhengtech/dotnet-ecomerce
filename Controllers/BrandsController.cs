@@ -1,7 +1,9 @@
-﻿using Ecomerce_dotnet.Data;
+using Ecomerce_dotnet.Data;
 using Ecomerce_dotnet.DTOs;
+using Ecomerce_dotnet.Filters;
 using Ecomerce_dotnet.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System;
@@ -14,6 +16,7 @@ namespace Ecomerce_dotnet.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("ApiPolicy")]
     public class BrandsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -68,6 +71,7 @@ namespace Ecomerce_dotnet.Controllers
 
         // 3. CREATE (POST /api/brands - Multipart form upload)
         [HttpPost]
+        [HasPermission("brands:create")]
         public async Task<IActionResult> Create([FromForm] BrandCreateDto dto)
         {
             // Business Rule: Ensure brand name is unique to avoid identity cluttering
@@ -97,6 +101,7 @@ namespace Ecomerce_dotnet.Controllers
 
         // 4. UPDATE (PUT /api/brands/{id})
         [HttpPut("{id}")]
+        [HasPermission("brands:update")]
         public async Task<IActionResult> Update(Guid id, [FromForm] BrandUpdateDto dto)
         {
             var brand = await _context.Brands.FindAsync(id);
@@ -132,6 +137,7 @@ namespace Ecomerce_dotnet.Controllers
 
         // 5. DELETE (DELETE /api/brands/{id})
         [HttpDelete("{id}")]
+        [HasPermission("brands:delete")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var brand = await _context.Brands.FindAsync(id);

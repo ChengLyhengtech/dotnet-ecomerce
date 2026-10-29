@@ -1,5 +1,158 @@
 [
   {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "GetAllRoles",
+    "RelativePath": "api/admin/roles",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "CreateRole",
+    "RelativePath": "api/admin/roles",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.CreateRoleDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "DeleteRole",
+    "RelativePath": "api/admin/roles/{roleId}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roleId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "GetRolePermissions",
+    "RelativePath": "api/admin/roles/{roleId}/permissions",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roleId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "AssignPermissionsToRole",
+    "RelativePath": "api/admin/roles/{roleId}/permissions",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roleId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.AssignPermissionsToRoleDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "AssignRoleToUser",
+    "RelativePath": "api/admin/roles/assign",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.AssignRoleToUserDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "GetAllPermissions",
+    "RelativePath": "api/admin/roles/permissions",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "CreatePermission",
+    "RelativePath": "api/admin/roles/permissions",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.CreatePermissionDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "RemoveRoleFromUser",
+    "RelativePath": "api/admin/roles/remove",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.RemoveRoleFromUserDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AdminRoleController",
+    "Method": "GetUserRolesAndPermissions",
+    "RelativePath": "api/admin/roles/user/{userId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "Ecomerce_dotnet.Controllers.UsersController",
     "Method": "GetAll",
     "RelativePath": "api/admin/Users",
@@ -38,6 +191,48 @@
   },
   {
     "ContainingType": "Ecomerce_dotnet.Controllers.UsersController",
+    "Method": "AdminUploadAvatar",
+    "RelativePath": "api/admin/Users/{id}/avatar",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "avatar",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UsersController",
+    "Method": "AdminRemoveAvatar",
+    "RelativePath": "api/admin/Users/{id}/avatar",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UsersController",
     "Method": "ToggleBan",
     "RelativePath": "api/admin/Users/{id}/ban",
     "HttpMethod": "PUT",
@@ -59,6 +254,64 @@
   },
   {
     "ContainingType": "Ecomerce_dotnet.Controllers.UsersController",
+    "Method": "AdminUpdateFullName",
+    "RelativePath": "api/admin/Users/{id}/fullname",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UsersController",
+    "Method": "AdminUpdateFullName",
+    "RelativePath": "api/admin/Users/{id}/fullname",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UsersController",
+    "Method": "ResetPassword",
+    "RelativePath": "api/admin/Users/{id}/reset-password",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UsersController",
     "Method": "UpdateRole",
     "RelativePath": "api/admin/Users/{id}/role",
     "HttpMethod": "PUT",
@@ -73,6 +326,22 @@
       {
         "Name": "dto",
         "Type": "Ecomerce_dotnet.DTOs.UserUpdateRoleDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.AuthController",
+    "Method": "ForceChangePassword",
+    "RelativePath": "api/Auth/force-change-password",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.ForceChangePasswordDto",
         "IsRequired": true
       }
     ],
@@ -653,6 +922,37 @@
     "Order": 0,
     "Parameters": [
       {
+        "Name": "range",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "startDate",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "endDate",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.DashboardController",
+    "Method": "GetTrends",
+    "RelativePath": "api/Dashboard/trends",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "range",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
         "Name": "startDate",
         "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "IsRequired": false
@@ -872,6 +1172,38 @@
   },
   {
     "ContainingType": "Ecomerce_dotnet.Controllers.OrdersController",
+    "Method": "CancelOrder",
+    "RelativePath": "api/Orders/{id}/cancel",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.OrdersController",
+    "Method": "CancelOrder",
+    "RelativePath": "api/Orders/{id}/cancel",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.OrdersController",
     "Method": "UpdateStatus",
     "RelativePath": "api/Orders/{id}/status",
     "HttpMethod": "PUT",
@@ -893,6 +1225,37 @@
   },
   {
     "ContainingType": "Ecomerce_dotnet.Controllers.OrdersController",
+    "Method": "GetMyOrders",
+    "RelativePath": "api/Orders/my-orders",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Status",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Search",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "PageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.OrdersController",
     "Method": "GetUserOrders",
     "RelativePath": "api/Orders/user/{userId}",
     "HttpMethod": "GET",
@@ -903,6 +1266,69 @@
         "Name": "userId",
         "Type": "System.Guid",
         "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "FailPayment",
+    "RelativePath": "api/Payment/{identifier}/fail",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "identifier",
+        "Type": "System.String",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.FailPaymentRequestDto",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "FailPayment",
+    "RelativePath": "api/Payment/cancel/{identifier}",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "identifier",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.FailPaymentRequestDto",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "FailPayment",
+    "RelativePath": "api/Payment/cancel/{identifier}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "identifier",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.FailPaymentRequestDto",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
@@ -939,6 +1365,48 @@
       {
         "Name": "request",
         "Type": "Ecomerce_dotnet.DTOs.CheckPaymentRequestDto",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "FailPayment",
+    "RelativePath": "api/Payment/fail/{identifier}",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "identifier",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.FailPaymentRequestDto",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.PaymentController",
+    "Method": "FailPayment",
+    "RelativePath": "api/Payment/fail/{identifier}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "identifier",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "request",
+        "Type": "Ecomerce_dotnet.DTOs.FailPaymentRequestDto",
         "IsRequired": false
       }
     ],
@@ -1221,6 +1689,22 @@
   },
   {
     "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
+    "Method": "GetProductReviews",
+    "RelativePath": "api/Products/{id}/reviews",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
     "Method": "AddVariantToProduct",
     "RelativePath": "api/Products/{id}/variants",
     "HttpMethod": "POST",
@@ -1267,6 +1751,22 @@
       {
         "Name": "imageId",
         "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.ProductsController",
+    "Method": "SubmitReview",
+    "RelativePath": "api/Products/reviews",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.ProductReviewCreateDto",
         "IsRequired": true
       }
     ],
@@ -1712,6 +2212,11 @@
         "IsRequired": false
       },
       {
+        "Name": "OrderCancellationWindowHours",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
         "Name": "LogoImage",
         "Type": "Microsoft.AspNetCore.Http.IFormFile",
         "IsRequired": false
@@ -1773,9 +2278,306 @@
         "IsRequired": false
       },
       {
+        "Name": "OrderCancellationWindowHours",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
         "Name": "LogoImage",
         "Type": "Microsoft.AspNetCore.Http.IFormFile",
         "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UploadAvatar",
+    "RelativePath": "api/user/avatar",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "avatar",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "RemoveAvatar",
+    "RelativePath": "api/user/avatar",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UpdateFullName",
+    "RelativePath": "api/user/fullname",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UpdateFullName",
+    "RelativePath": "api/user/fullname",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "GetProfile",
+    "RelativePath": "api/user/me",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "GetProfile",
+    "RelativePath": "api/user/profile",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UploadAvatar",
+    "RelativePath": "api/user/profile/avatar",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "avatar",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "RemoveAvatar",
+    "RelativePath": "api/user/profile/avatar",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UpdateFullName",
+    "RelativePath": "api/user/profile/fullname",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UpdateFullName",
+    "RelativePath": "api/user/profile/fullname",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UploadAvatar",
+    "RelativePath": "api/users/avatar",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "avatar",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "RemoveAvatar",
+    "RelativePath": "api/users/avatar",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UpdateFullName",
+    "RelativePath": "api/users/fullname",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UpdateFullName",
+    "RelativePath": "api/users/fullname",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "GetProfile",
+    "RelativePath": "api/users/me",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "GetProfile",
+    "RelativePath": "api/users/profile",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UploadAvatar",
+    "RelativePath": "api/users/profile/avatar",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "avatar",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "RemoveAvatar",
+    "RelativePath": "api/users/profile/avatar",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UpdateFullName",
+    "RelativePath": "api/users/profile/fullname",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Ecomerce_dotnet.Controllers.UserController",
+    "Method": "UpdateFullName",
+    "RelativePath": "api/users/profile/fullname",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Ecomerce_dotnet.DTOs.UpdateFullNameDto",
+        "IsRequired": true
       }
     ],
     "ReturnTypes": []

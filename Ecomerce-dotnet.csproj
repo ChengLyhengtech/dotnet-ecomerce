@@ -33,4 +33,12 @@
     <Folder Include="Repositories\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove="D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="D:\Web-Development\ecomerce-dotnet\Ecomerce-dotnet\Ecomerce-dotnet\.editorconfig" />
+  </ItemGroup>
+
 </Project>

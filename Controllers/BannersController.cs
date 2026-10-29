@@ -6,9 +6,11 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Ecomerce_dotnet.Data;
 using Ecomerce_dotnet.DTOs;
+using Ecomerce_dotnet.Filters;
 using Ecomerce_dotnet.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 
@@ -16,6 +18,7 @@ namespace Ecomerce_dotnet.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("ApiPolicy")]
     public class BannersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -31,7 +34,10 @@ namespace Ecomerce_dotnet.Controllers
             _cache = cache;
         }
 
-        // 1. PUBLIC ENDPOINT: Get active banners optimized with Redis Caching
+        // ========================================================
+        // 1. PUBLIC ENDPOINTS (No Authorization / Unrestricted Access)
+        // ========================================================
+
         // GET: api/Banners?isActive=true&position=1
         [HttpGet]
         public async Task<IActionResult> GetBanners(
@@ -86,8 +92,13 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(banner);
         }
 
-        // 2. ADMIN ENDPOINT: Create a banner with dual Desktop & Mobile image uploads
+        // ========================================================
+        // 2. ADMINISTRATIVE ACTIONS (Secured via Granular RBAC)
+        // ========================================================
+
+        // POST: api/banners (Create a banner with dual Desktop & Mobile image uploads)
         [HttpPost]
+        [HasPermission("banners:create")]
         public async Task<IActionResult> Create([FromForm] BannerCreateDto dto)
         {
             if (!ModelState.IsValid)
@@ -133,8 +144,9 @@ namespace Ecomerce_dotnet.Controllers
             return CreatedAtAction(nameof(GetById), new { id = banner.Id }, banner);
         }
 
-        // 3. UPDATE (PUT /api/banners/{id})
+        // PUT: api/banners/{id}
         [HttpPut("{id:guid}")]
+        [HasPermission("banners:update")]
         public async Task<IActionResult> Update(Guid id, [FromForm] BannerUpdateDto dto)
         {
             var banner = await _context.Banners.FindAsync(id);
@@ -186,8 +198,9 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(banner);
         }
 
-        // 4. PATCH /api/banners/{id}/toggle-active
+        // PATCH: api/banners/{id}/toggle-active
         [HttpPatch("{id:guid}/toggle-active")]
+        [HasPermission("banners:update")]
         public async Task<IActionResult> ToggleActive(Guid id)
         {
             var banner = await _context.Banners.FindAsync(id);
@@ -213,8 +226,9 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(new { message = $"Banner campaign '{banner.Name}' status shifted to {(banner.IsActive ? "Active" : "Inactive")}.", isActive = banner.IsActive });
         }
 
-        // 5. ADMIN ENDPOINT: Delete banner & clean up physical files
+        // DELETE: api/banners/{id}
         [HttpDelete("{id:guid}")]
+        [HasPermission("banners:delete")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var banner = await _context.Banners.FindAsync(id);

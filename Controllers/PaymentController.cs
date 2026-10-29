@@ -12,6 +12,7 @@ using Ecomerce_dotnet.Hubs;
 using Ecomerce_dotnet.Models;
 using Ecomerce_dotnet.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -20,6 +21,7 @@ namespace Ecomerce_dotnet.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("ApiPolicy")]
     public class PaymentController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -83,7 +85,7 @@ namespace Ecomerce_dotnet.Controllers
                     storeLabel,
                     terminalLabel,
                     mcc,
-                    expirationMinutes: 30
+                    expirationMinutes: 15
                 );
 
                 var payment = new Payment
@@ -107,7 +109,7 @@ namespace Ecomerce_dotnet.Controllers
                     {
                         order.QrCode = qrString;
                         order.QrMd5 = md5;
-                        order.QrExpiration = DateTime.UtcNow.AddMinutes(30);
+                        order.QrExpiration = DateTime.UtcNow.AddMinutes(15);
                         order.PaymentMethod = "khqr";
                     }
                 }
@@ -124,7 +126,7 @@ namespace Ecomerce_dotnet.Controllers
                     amount = payment.Amount,
                     currency = payment.Currency,
                     merchant_name = merchantName,
-                    qr_expiration = DateTime.UtcNow.AddMinutes(30).ToString("o")
+                    qr_expiration = DateTime.UtcNow.AddMinutes(15).ToString("o")
                 });
             }
             catch (Exception ex)
@@ -225,6 +227,157 @@ namespace Ecomerce_dotnet.Controllers
             return await ProcessPaymentSuccessAsync(payment, order, mockTxHash, "dev_acc_from", "dev_acc_to", "Simulated via Developer Test API Endpoint.");
         }
 
+        // =========================================================================
+        // 6. PATCH/POST: /api/payment/fail or /api/payment/fail/{identifier}
+        // Allows frontend to fail/cancel payment and immediately release reserved stock
+        // =========================================================================
+        [HttpPatch("fail/{identifier?}")]
+        [HttpPost("fail/{identifier?}")]
+        [HttpPatch("cancel/{identifier?}")]
+        [HttpPost("cancel/{identifier?}")]
+        [HttpPatch("{identifier}/fail")]
+        public async Task<IActionResult> FailPayment([FromRoute] string? identifier = null, [FromBody] FailPaymentRequestDto? request = null)
+        {
+            try
+            {
+                string? rawKey = identifier 
+                    ?? request?.Invoice 
+                    ?? request?.QrMd5 
+                    ?? request?.QrMd5Alt 
+                    ?? request?.Md5 
+                    ?? request?.OrderId?.ToString() 
+                    ?? request?.PaymentId?.ToString();
+
+                if (string.IsNullOrWhiteSpace(rawKey))
+                {
+                    return BadRequest(new { success = false, message = "Payment identifier (invoice, md5, orderId, or paymentId) is required." });
+                }
+
+                rawKey = rawKey.Trim();
+                string lookupKey = rawKey;
+                if (lookupKey.StartsWith("INV-", StringComparison.OrdinalIgnoreCase) && lookupKey.Length > 21)
+                {
+                    lookupKey = lookupKey.Substring(0, 21);
+                }
+
+                bool isGuid = Guid.TryParse(lookupKey, out Guid parsedGuid);
+
+                // Find Payment
+                var payment = await _context.Payments
+                    .Include(p => p.Order!)
+                        .ThenInclude(o => o.OrderItems)
+                            .ThenInclude(oi => oi.ProductVariant)
+                    .FirstOrDefaultAsync(p => 
+                        p.Invoice == lookupKey || 
+                        p.Invoice == rawKey ||
+                        p.Md5 == lookupKey || 
+                        p.Md5 == rawKey ||
+                        p.BakongTransactionRef == lookupKey ||
+                        (isGuid && (p.OrderId == parsedGuid || p.Id == parsedGuid))
+                    );
+
+                Order? order = payment?.Order;
+
+                // Fallback to Orders table if Payment link missing
+                if (order == null && (isGuid || !string.IsNullOrEmpty(lookupKey)))
+                {
+                    order = await _context.Orders
+                        .Include(o => o.Payment)
+                        .Include(o => o.OrderItems)
+                            .ThenInclude(oi => oi.ProductVariant)
+                        .FirstOrDefaultAsync(o => 
+                            o.QrMd5 == lookupKey || 
+                            o.QrMd5 == rawKey ||
+                            (isGuid && o.Id == parsedGuid)
+                        );
+
+                    payment ??= order?.Payment;
+                }
+
+                if (payment == null && order == null)
+                {
+                    return NotFound(new { success = false, message = "Payment or Order record not found for the specified identifier." });
+                }
+
+                // Guard: Do not allow failing already settled payments
+                if ((payment != null && payment.Status == "PAID") || (order != null && order.Status == "Paid"))
+                {
+                    return BadRequest(new { success = false, message = "Cannot fail a payment that has already been successfully paid and settled." });
+                }
+
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    if (payment != null)
+                    {
+                        payment.Status = "FAILED";
+                        if (!string.IsNullOrWhiteSpace(request?.Reason))
+                        {
+                            payment.Description = $"Cancelled/Failed: {request.Reason}";
+                        }
+                    }
+
+                    if (order != null)
+                    {
+                        // If order is pending, release reserved stock back to available pool
+                        if (string.Equals(order.Status, "Pending", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(order.Status, OrderStatus.Pending.ToString(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            foreach (var item in order.OrderItems)
+                            {
+                                var variant = item.ProductVariant ?? await _context.ProductVariants.FindAsync(item.VariantId);
+                                if (variant != null)
+                                {
+                                    variant.ReservedQuantity = Math.Max(0, variant.ReservedQuantity - item.Quantity);
+                                }
+                            }
+
+                            order.Status = OrderStatus.Cancelled.ToString();
+                        }
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    // Broadcast Real-time SignalR Event
+                    var targetOrderId = order?.Id ?? payment?.OrderId;
+                    if (targetOrderId.HasValue)
+                    {
+                        var failPayload = new
+                        {
+                            orderId = targetOrderId.Value,
+                            invoice = payment?.Invoice ?? order?.QrCode,
+                            status = "FAILED",
+                            orderStatus = order?.Status ?? "Cancelled",
+                            paid = false,
+                            reason = request?.Reason ?? "Payment marked as failed/cancelled by client."
+                        };
+
+                        await _hubContext.Clients.Group($"order_{targetOrderId.Value}").SendAsync("ReceivePaymentFailed", failPayload);
+                    }
+
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "Payment status updated to FAILED and reserved stock was released.",
+                        status = "FAILED",
+                        invoice = payment?.Invoice,
+                        orderId = order?.Id ?? payment?.OrderId,
+                        orderStatus = order?.Status
+                    });
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return StatusCode(500, new { success = false, message = $"Failed to update payment status: {ex.Message}" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"An unexpected error occurred: {ex.Message}" });
+            }
+        }
+
         // Core Status Checking Engine (Supports Invoice, MD5, OrderId, and UserId)
         private async Task<IActionResult> PerformCheckPaymentAsync(string identifier, CheckPaymentRequestDto? request)
         {
@@ -308,6 +461,22 @@ namespace Ecomerce_dotnet.Controllers
                     amount = payment?.Amount ?? order?.TotalAmount,
                     currency = payment?.Currency ?? "USD",
                     paid_at = payment?.PaidAt?.ToString("o") ?? DateTime.UtcNow.ToString("o")
+                });
+            }
+
+            // Early Exit if already marked FAILED or Cancelled
+            if ((payment != null && payment.Status == "FAILED") || (order != null && order.Status == "Cancelled"))
+            {
+                Console.WriteLine($"❌ Payment or Order is FAILED / CANCELLED in Database.");
+                Console.WriteLine($"====================================================================\n");
+                return Ok(new
+                {
+                    status = "FAILED",
+                    paid = false,
+                    success = false,
+                    message = "Payment has failed or was cancelled.",
+                    invoice = payment?.Invoice,
+                    order_id = order?.Id ?? payment?.OrderId
                 });
             }
 

@@ -26,13 +26,65 @@ namespace Ecomerce_dotnet.Controllers
         }
 
         [HttpGet("summary")]
-        public async Task<IActionResult> GetSummary([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
+        public async Task<IActionResult> GetSummary([FromQuery] string? range, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
         {
             try
             {
-                // Default date range fallback to the trailing 30 days if not provided
-                DateTime end = endDate ?? DateTime.UtcNow;
-                DateTime start = startDate ?? end.AddDays(-30);
+                var now = DateTime.UtcNow;
+                DateTime start;
+                DateTime end;
+
+                if (!string.IsNullOrWhiteSpace(range) && !range.Equals("custom", StringComparison.OrdinalIgnoreCase))
+                {
+                    switch (range.Trim().ToLowerInvariant())
+                    {
+                        case "today":
+                            start = DateTime.SpecifyKind(now.Date, DateTimeKind.Utc);
+                            end = DateTime.SpecifyKind(now.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+                            break;
+                        case "this_week":
+                        case "week":
+                            int diff = (7 + (int)now.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+                            start = DateTime.SpecifyKind(now.Date.AddDays(-diff), DateTimeKind.Utc);
+                            end = DateTime.SpecifyKind(start.AddDays(7).AddTicks(-1), DateTimeKind.Utc);
+                            break;
+                        case "this_month":
+                        case "month":
+                            start = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+                            end = start.AddMonths(1).AddTicks(-1);
+                            break;
+                        case "this_year":
+                        case "year":
+                            start = new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                            end = start.AddYears(1).AddTicks(-1);
+                            break;
+                        case "last_30_days":
+                            end = now;
+                            start = end.AddDays(-30);
+                            break;
+                        default:
+                            start = startDate.HasValue 
+                                ? DateTime.SpecifyKind(startDate.Value.Date, DateTimeKind.Utc) 
+                                : now.AddDays(-30);
+                            end = endDate.HasValue 
+                                ? (endDate.Value.TimeOfDay == TimeSpan.Zero 
+                                    ? DateTime.SpecifyKind(endDate.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc) 
+                                    : DateTime.SpecifyKind(endDate.Value, DateTimeKind.Utc))
+                                : now;
+                            break;
+                    }
+                }
+                else
+                {
+                    start = startDate.HasValue 
+                        ? DateTime.SpecifyKind(startDate.Value.Date, DateTimeKind.Utc) 
+                        : now.AddDays(-30);
+                    end = endDate.HasValue 
+                        ? (endDate.Value.TimeOfDay == TimeSpan.Zero 
+                            ? DateTime.SpecifyKind(endDate.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc) 
+                            : DateTime.SpecifyKind(endDate.Value, DateTimeKind.Utc))
+                        : now;
+                }
 
                 if (start > end)
                 {
@@ -42,7 +94,6 @@ namespace Ecomerce_dotnet.Controllers
                 _logger.LogInformation("Generating dashboard summary from {Start} to {End}", start, end);
 
                 // 1. Calculate Financials: Gross Revenue, Total COGS, Net Profit, Profit Margin %, Total Orders, and AOV
-                // Filtered by date range and non-Pending, non-Cancelled orders
                 var financialsQuery = await _context.Orders
                     .Where(o => o.OrderDate >= start && o.OrderDate <= end && o.Status != "Pending" && o.Status != "Cancelled")
                     .GroupBy(o => 1)
@@ -81,11 +132,82 @@ namespace Ecomerce_dotnet.Controllers
                     AverageOrderValue = averageOrderValue
                 };
 
-                // 2. Query Total Registered Customer User Account Count
+                // 2. Compute Sales Trends: Day-by-day comparison (Monday - Sunday) for current week vs previous week
+                DateTime trendRefDate = end > now ? now : end;
+                int daysSinceMonday = (7 + (int)trendRefDate.Date.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+                DateTime currentWeekMonday = DateTime.SpecifyKind(trendRefDate.Date.AddDays(-daysSinceMonday), DateTimeKind.Utc);
+                DateTime previousWeekMonday = currentWeekMonday.AddDays(-7);
+
+                var trendOrders = await _context.Orders
+                    .Where(o => o.OrderDate >= previousWeekMonday && o.OrderDate < currentWeekMonday.AddDays(7) && o.Status != "Pending" && o.Status != "Cancelled")
+                    .Select(o => new { o.OrderDate, o.TotalAmount })
+                    .ToListAsync();
+
+                string[] dayLabels = new[] { "M", "T", "W", "T", "F", "S", "S" };
+                var salesTrends = new List<SalesTrendPointDto>();
+
+                for (int i = 0; i < 7; i++)
+                {
+                    var currDayStart = currentWeekMonday.AddDays(i);
+                    var currDayEnd = currDayStart.AddDays(1);
+                    var prevDayStart = previousWeekMonday.AddDays(i);
+                    var prevDayEnd = prevDayStart.AddDays(1);
+
+                    decimal currDaySales = trendOrders
+                        .Where(o => o.OrderDate >= currDayStart && o.OrderDate < currDayEnd)
+                        .Sum(o => o.TotalAmount);
+
+                    decimal prevDaySales = trendOrders
+                        .Where(o => o.OrderDate >= prevDayStart && o.OrderDate < prevDayEnd)
+                        .Sum(o => o.TotalAmount);
+
+                    salesTrends.Add(new SalesTrendPointDto
+                    {
+                        Label = dayLabels[i],
+                        CurrentPeriod = currDaySales,
+                        PreviousPeriod = prevDaySales
+                    });
+                }
+
+                // 3. Compute Transaction Statistics: 10-point curve time series across [start, end]
+                int intervals = 10;
+                var totalSeconds = (end - start).TotalSeconds;
+                var intervalSeconds = totalSeconds > 0 ? totalSeconds / intervals : 1;
+
+                var rangeOrders = await _context.Orders
+                    .Where(o => o.OrderDate >= start && o.OrderDate <= end && o.Status != "Pending" && o.Status != "Cancelled")
+                    .Select(o => new { o.OrderDate, o.TotalAmount })
+                    .ToListAsync();
+
+                var salesSeries = new List<decimal>();
+                var transactionsSeries = new List<int>();
+
+                for (int i = 0; i < intervals; i++)
+                {
+                    var bucketStart = start.AddSeconds(i * intervalSeconds);
+                    var bucketEnd = (i == intervals - 1) ? end : start.AddSeconds((i + 1) * intervalSeconds);
+
+                    var bucketOrders = rangeOrders
+                        .Where(o => o.OrderDate >= bucketStart && (i == intervals - 1 ? o.OrderDate <= bucketEnd : o.OrderDate < bucketEnd))
+                        .ToList();
+
+                    salesSeries.Add(bucketOrders.Sum(o => o.TotalAmount));
+                    transactionsSeries.Add(bucketOrders.Count);
+                }
+
+                decimal peakValue = salesSeries.Count > 0 ? salesSeries.Max() : 0m;
+
+                var transactionStatistics = new TransactionStatisticsDto
+                {
+                    PeakValue = peakValue,
+                    SalesSeries = salesSeries,
+                    TransactionsSeries = transactionsSeries
+                };
+
+                // 4. Query Total Registered Customer User Account Count
                 var totalUserCount = await _context.Users.CountAsync();
 
-                // 3. Query Inventory Alerts: Product variants with computed available stock (Physical - Reserved) <= 5
-                // Across non-deleted products only
+                // 5. Query Inventory Alerts: Product variants with computed available stock (Physical - Reserved) <= 5
                 var inventoryAlerts = await _context.ProductVariants
                     .Include(v => v.Product)
                     .Where(v => v.Product != null && !v.Product.IsDeleted && (v.PhysicalQuantity - v.ReservedQuantity) <= 5)
@@ -103,8 +225,7 @@ namespace Ecomerce_dotnet.Controllers
                     })
                     .ToListAsync();
 
-                // 4. Query Geospatial Logistics Matrix: Order latitude/longitude points inside date range
-                // Filter out Cancelled orders to focus on pending/active/completed logistics
+                // 6. Query Geospatial Logistics Matrix
                 var geospatialLogistics = await _context.Orders
                     .Where(o => o.OrderDate >= start && o.OrderDate <= end && o.Status != "Cancelled")
                     .Select(o => new GeospatialLogisticsDto
@@ -116,7 +237,7 @@ namespace Ecomerce_dotnet.Controllers
                     })
                     .ToListAsync();
 
-                // Base query for top performers within target date range (non-Pending, non-Cancelled orders)
+                // Base query for top performers within target date range
                 var validOrderItemsQuery = _context.OrderItems
                     .Where(oi => oi.Order != null 
                         && oi.Order.OrderDate >= start 
@@ -124,7 +245,7 @@ namespace Ecomerce_dotnet.Controllers
                         && oi.Order.Status != "Pending" 
                         && oi.Order.Status != "Cancelled");
 
-                // 5. Top 5 Products by Quantity Sold
+                // 7. Top 5 Products by Quantity Sold
                 var topProducts = await validOrderItemsQuery
                     .Where(oi => oi.ProductVariant != null && oi.ProductVariant.Product != null)
                     .GroupBy(oi => new { oi.ProductVariant!.Product!.Id, oi.ProductVariant!.Product!.Name })
@@ -139,7 +260,7 @@ namespace Ecomerce_dotnet.Controllers
                     .Take(5)
                     .ToListAsync();
 
-                // 6. Top 5 Brands by Revenue
+                // 8. Top 5 Brands by Revenue
                 var topBrands = await validOrderItemsQuery
                     .Where(oi => oi.ProductVariant != null && oi.ProductVariant.Product != null && oi.ProductVariant.Product.Brand != null)
                     .GroupBy(oi => new { oi.ProductVariant!.Product!.Brand!.Id, oi.ProductVariant!.Product!.Brand!.Name })
@@ -154,7 +275,7 @@ namespace Ecomerce_dotnet.Controllers
                     .Take(5)
                     .ToListAsync();
 
-                // 7. Top 5 Categories by Revenue
+                // 9. Top 5 Categories by Revenue
                 var topCategories = await validOrderItemsQuery
                     .Where(oi => oi.ProductVariant != null && oi.ProductVariant.Product != null && oi.ProductVariant.Product.Category != null)
                     .GroupBy(oi => new { oi.ProductVariant!.Product!.Category!.Id, oi.ProductVariant!.Product!.Category!.Name })
@@ -172,6 +293,8 @@ namespace Ecomerce_dotnet.Controllers
                 var dashboardSummary = new DashboardSummaryDto
                 {
                     Financials = financials,
+                    SalesTrends = salesTrends,
+                    TransactionStatistics = transactionStatistics,
                     TotalUserCount = totalUserCount,
                     InventoryAlerts = inventoryAlerts,
                     GeospatialLogistics = geospatialLogistics,
@@ -187,6 +310,22 @@ namespace Ecomerce_dotnet.Controllers
                 _logger.LogError(ex, "Failed to retrieve dashboard analytics summary.");
                 return StatusCode(500, new { message = "An error occurred while generating the dashboard analytics summary.", error = ex.Message });
             }
+        }
+
+        [HttpGet("trends")]
+        public async Task<IActionResult> GetTrends([FromQuery] string? range, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
+        {
+            var summaryResult = await GetSummary(range, startDate, endDate);
+            if (summaryResult is OkObjectResult okResult && okResult.Value is DashboardSummaryDto summary)
+            {
+                return Ok(new
+                {
+                    salesTrends = summary.SalesTrends,
+                    transactionStatistics = summary.TransactionStatistics
+                });
+            }
+
+            return summaryResult;
         }
     }
 }

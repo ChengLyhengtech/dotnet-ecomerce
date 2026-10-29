@@ -39,4 +39,28 @@ namespace Ecomerce_dotnet.DTOs
         [JsonPropertyName("sourceInfo")]
         public object? SourceInfo { get; set; }
     }
+
+    public class FailPaymentRequestDto
+    {
+        [JsonPropertyName("invoice")]
+        public string? Invoice { get; set; }
+
+        [JsonPropertyName("qr_md5")]
+        public string? QrMd5 { get; set; }
+
+        [JsonPropertyName("qrMd5")]
+        public string? QrMd5Alt { get; set; }
+
+        [JsonPropertyName("md5")]
+        public string? Md5 { get; set; }
+
+        [JsonPropertyName("orderId")]
+        public Guid? OrderId { get; set; }
+
+        [JsonPropertyName("paymentId")]
+        public Guid? PaymentId { get; set; }
+
+        [JsonPropertyName("reason")]
+        public string? Reason { get; set; }
+    }
 }

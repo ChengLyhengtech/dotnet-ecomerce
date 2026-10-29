@@ -1,4 +1,4 @@
-﻿using Ecomerce_dotnet.Data;
+using Ecomerce_dotnet.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ecomerce_dotnet.Services
@@ -46,6 +46,7 @@ namespace Ecomerce_dotnet.Services
 
             // Adjusted to look for string "Pending" and use your OrderDate property
             var expiredOrders = await context.Orders
+                .Include(o => o.Payment)
                 .Include(o => o.OrderItems)
                 .Where(o => o.Status == "Pending" && o.OrderDate <= absoluteCutoffTime)
                 .ToListAsync();
@@ -74,6 +75,11 @@ namespace Ecomerce_dotnet.Services
 
                     // Marked as "Cancelled" based on your model status options
                     order.Status = "Cancelled";
+
+                    if (order.Payment != null && string.Equals(order.Payment.Status, "PENDING", StringComparison.OrdinalIgnoreCase))
+                    {
+                        order.Payment.Status = "FAILED";
+                    }
                 }
 
                 await context.SaveChangesAsync();

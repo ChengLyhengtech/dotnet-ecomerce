@@ -6,12 +6,28 @@ namespace Ecomerce_dotnet.DTOs
     public class DashboardSummaryDto
     {
         public FinancialsDto Financials { get; set; } = new();
+        public List<SalesTrendPointDto> SalesTrends { get; set; } = new();
+        public TransactionStatisticsDto TransactionStatistics { get; set; } = new();
         public int TotalUserCount { get; set; }
         public List<InventoryAlertDto> InventoryAlerts { get; set; } = new();
         public List<GeospatialLogisticsDto> GeospatialLogistics { get; set; } = new();
         public List<TopPerformerDto> TopProducts { get; set; } = new();
         public List<TopPerformerDto> TopBrands { get; set; } = new();
         public List<TopPerformerDto> TopCategories { get; set; } = new();
+    }
+
+    public class SalesTrendPointDto
+    {
+        public string Label { get; set; } = string.Empty;
+        public decimal CurrentPeriod { get; set; }
+        public decimal PreviousPeriod { get; set; }
+    }
+
+    public class TransactionStatisticsDto
+    {
+        public decimal PeakValue { get; set; }
+        public List<decimal> SalesSeries { get; set; } = new();
+        public List<int> TransactionsSeries { get; set; } = new();
     }
 
     public class FinancialsDto

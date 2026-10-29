@@ -98,7 +98,7 @@ namespace Ecomerce_dotnet.Controllers
                 var storeLabel = _config["BakongSettings:StoreLabel"] ?? "E-Commerce Store";
                 var terminalLabel = _config["BakongSettings:TerminalLabel"] ?? "Cashier_1";
                 var mcc = _config["BakongSettings:MerchantCategoryCode"] ?? "5999";
-                var expirationTime = DateTime.UtcNow.AddMinutes(30);
+                var expirationTime = DateTime.UtcNow.AddMinutes(15);
 
                 string invoice = $"INV-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
                 var (qrString, md5Hash) = _qrService.GenerateMerchantQr(
@@ -114,7 +114,7 @@ namespace Ecomerce_dotnet.Controllers
                     storeLabel,
                     terminalLabel,
                     mcc,
-                    expirationMinutes: 30
+                    expirationMinutes: 15
                 );
 
                 order.QrCode = qrString;
@@ -440,6 +440,249 @@ namespace Ecomerce_dotnet.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = $"Order state transitioned to '{dto.Status}' successfully." });
+        }
+
+        // ========================================================
+        // 6. GET: api/orders/my-orders (Customer Authenticated Order History with Single Image per Item)
+        // ========================================================
+        [HttpGet("my-orders")]
+        [Authorize]
+        public async Task<IActionResult> GetMyOrders([FromQuery] MyOrdersQueryDto queryDto)
+        {
+            var userId = GetUserId();
+
+            if (queryDto.PageNumber < 1) queryDto.PageNumber = 1;
+            if (queryDto.PageSize < 1 || queryDto.PageSize > 50) queryDto.PageSize = 10;
+
+            // 1. Fetch Dynamic Cancellation Window from Shop Profile (fallback 6 hours)
+            var shopProfile = await _context.ShopProfiles.FirstOrDefaultAsync();
+            int windowHours = (shopProfile != null && shopProfile.OrderCancellationWindowHours > 0)
+                ? shopProfile.OrderCancellationWindowHours
+                : 6;
+
+            // 2. Base Query scoped strictly to the current authenticated user
+            var query = _context.Orders
+                .Where(o => o.UserId == userId)
+                .AsQueryable();
+
+            // 3. Status Filtering
+            if (!string.IsNullOrWhiteSpace(queryDto.Status))
+            {
+                var targetStatus = queryDto.Status.Trim().ToLower();
+                query = query.Where(o => o.Status.ToLower() == targetStatus);
+            }
+
+            // 4. Search Filter (by Order ID or Product Name)
+            if (!string.IsNullOrWhiteSpace(queryDto.Search))
+            {
+                var term = queryDto.Search.Trim().ToLower();
+                Guid.TryParse(term, out Guid parsedOrderId);
+
+                query = query.Where(o =>
+                    o.Id == parsedOrderId ||
+                    o.OrderItems.Any(oi => oi.ProductVariant != null && 
+                                           oi.ProductVariant.Product != null && 
+                                           oi.ProductVariant.Product.Name.ToLower().Contains(term)) ||
+                    o.ContactPhone.Contains(term) ||
+                    o.ShippingAddress.ToLower().Contains(term));
+            }
+
+            int totalCount = await query.CountAsync();
+
+            var orders = await query
+                .OrderByDescending(o => o.OrderDate)
+                .Skip((queryDto.PageNumber - 1) * queryDto.PageSize)
+                .Take(queryDto.PageSize)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.ProductVariant)
+                        .ThenInclude(v => v!.Product)
+                .ToListAsync();
+
+            // 5. Gather Product IDs to fetch images in a single round-trip
+            var productIds = orders
+                .SelectMany(o => o.OrderItems)
+                .Where(oi => oi.ProductVariant?.Product != null)
+                .Select(oi => oi.ProductVariant!.ProductId)
+                .Distinct()
+                .ToList();
+
+            var images = await _context.ProductImages
+                .Where(img => productIds.Contains(img.ProductId))
+                .ToListAsync();
+
+            var now = DateTime.UtcNow;
+
+            // 6. Map to DTO ensuring EXACTLY ONE image per order item
+            var mappedOrders = orders.Select(order =>
+            {
+                var cutoffTime = order.OrderDate.AddHours(windowHours);
+                bool isPendingOrPaid = string.Equals(order.Status, "Pending", StringComparison.OrdinalIgnoreCase) ||
+                                       string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase);
+                bool canCancel = isPendingOrPaid && (now <= cutoffTime);
+
+                return new MyOrderResponseDto
+                {
+                    Id = order.Id,
+                    OrderDate = order.OrderDate,
+                    TotalAmount = order.TotalAmount,
+                    Status = order.Status,
+                    ShippingAddress = order.ShippingAddress,
+                    ContactPhone = order.ContactPhone,
+                    DeliveryLatitude = order.DeliveryLatitude,
+                    DeliveryLongitude = order.DeliveryLongitude,
+                    CanCancel = canCancel,
+                    CancellationWindowHours = windowHours,
+                    CancellationCutoffTime = cutoffTime,
+                    Items = order.OrderItems.Select(oi =>
+                    {
+                        var productImages = images.Where(img => img.ProductId == oi.ProductVariant?.ProductId).ToList();
+
+                        // Exactly one image: matching variant color -> primary -> first image -> empty string
+                        var singleImageUrl = productImages.FirstOrDefault(img => !string.IsNullOrEmpty(oi.ProductVariant?.Color) &&
+                                                                                  string.Equals(img.Color, oi.ProductVariant.Color, StringComparison.OrdinalIgnoreCase))?.ImageUrl
+                            ?? productImages.FirstOrDefault(img => img.IsPrimary)?.ImageUrl
+                            ?? productImages.FirstOrDefault()?.ImageUrl
+                            ?? string.Empty;
+
+                        return new MyOrderItemResponseDto
+                        {
+                            Id = oi.Id,
+                            ProductId = oi.ProductVariant?.ProductId ?? Guid.Empty,
+                            VariantId = oi.VariantId,
+                            ProductName = oi.ProductVariant?.Product?.Name ?? "Unknown Product",
+                            Sku = oi.ProductVariant?.Sku,
+                            Color = oi.ProductVariant?.Color,
+                            Size = oi.ProductVariant?.Size,
+                            ImageUrl = singleImageUrl,
+                            Quantity = oi.Quantity,
+                            PriceAtPurchase = oi.PriceAtPurchase,
+                            SubTotal = oi.PriceAtPurchase * oi.Quantity
+                        };
+                    }).ToList()
+                };
+            }).ToList();
+
+            var result = new PagedResult<MyOrderResponseDto>
+            {
+                Items = mappedOrders,
+                PageNumber = queryDto.PageNumber,
+                PageSize = queryDto.PageSize,
+                TotalCount = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)queryDto.PageSize)
+            };
+
+            return Ok(result);
+        }
+
+        // ========================================================
+        // 7. PATCH/POST: api/orders/{id}/cancel (Dynamic Order Cancellation with Shop Profile Window Guard)
+        // ========================================================
+        [HttpPatch("{id}/cancel")]
+        [HttpPost("{id}/cancel")]
+        [Authorize]
+        public async Task<IActionResult> CancelOrder(Guid id)
+        {
+            var userId = GetUserId();
+
+            var order = await _context.Orders
+                .Include(o => o.Payment)
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null)
+            {
+                return NotFound("The requested order record could not be found.");
+            }
+
+            // Verify ownership unless Admin/Manager
+            bool isAdminOrManager = User.IsInRole("Admin") || User.IsInRole("Manager");
+            if (order.UserId != userId && !isAdminOrManager)
+            {
+                return Forbid();
+            }
+
+            // 1. Guard: Validate that order is in Pending or Paid status
+            bool isPending = string.Equals(order.Status, "Pending", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(order.Status, OrderStatus.Pending.ToString(), StringComparison.OrdinalIgnoreCase);
+            bool isPaid = string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(order.Status, OrderStatus.Paid.ToString(), StringComparison.OrdinalIgnoreCase);
+
+            if (!isPending && !isPaid)
+            {
+                return BadRequest(new 
+                { 
+                    message = $"Only orders in 'Pending' or 'Paid' status can be cancelled. Current status is '{order.Status}'." 
+                });
+            }
+
+            // 2. Guard: Dynamic Cancellation Window check against ShopProfile
+            var shopProfile = await _context.ShopProfiles.FirstOrDefaultAsync();
+            int windowHours = (shopProfile != null && shopProfile.OrderCancellationWindowHours > 0)
+                ? shopProfile.OrderCancellationWindowHours
+                : 6;
+
+            var cutoffTime = order.OrderDate.AddHours(windowHours);
+            if (DateTime.UtcNow > cutoffTime && !isAdminOrManager)
+            {
+                return BadRequest(new
+                {
+                    message = $"Order cancellation failed: The dynamic cancellation window of {windowHours} hours has expired (Expired at: {cutoffTime:yyyy-MM-dd HH:mm:ss} UTC).",
+                    cancellationCutoff = cutoffTime
+                });
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // 3. Release reserved stock hold
+                foreach (var item in order.OrderItems)
+                {
+                    var variant = await _context.ProductVariants.FirstOrDefaultAsync(v => v.Id == item.VariantId);
+                    if (variant != null)
+                    {
+                        variant.ReservedQuantity = Math.Max(0, variant.ReservedQuantity - item.Quantity);
+
+                        if (isPaid)
+                        {
+                            var movement = new StockMovement
+                            {
+                                ProductVariantId = variant.Id,
+                                QuantityChanged = item.Quantity,
+                                MovementType = StockMovementType.CustomerReturn,
+                                ReasonCode = "Order Cancelled",
+                                Notes = $"Stock released for Cancelled Order #{order.Id}",
+                                ChangedBy = User.FindFirst(ClaimTypes.Email)?.Value ?? User.Identity?.Name ?? "Customer",
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            _context.StockMovements.Add(movement);
+                        }
+                    }
+                }
+
+                // 4. Update status to Cancelled
+                order.Status = OrderStatus.Cancelled.ToString();
+
+                if (order.Payment != null && string.Equals(order.Payment.Status, "PENDING", StringComparison.OrdinalIgnoreCase))
+                {
+                    order.Payment.Status = "FAILED";
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Order has been successfully cancelled and stock reservations have been released.",
+                    orderId = order.Id,
+                    status = order.Status
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { message = "An error occurred while cancelling the order.", error = ex.Message });
+            }
         }
     }
 }

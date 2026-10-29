@@ -48,6 +48,9 @@ namespace Ecomerce_dotnet.DTOs
         public string? AccessToken { get; set; }
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenExpiration { get; set; }
+        public bool RequiresPasswordChange { get; set; } = false;
+        public List<string> Roles { get; set; } = new();
+        public List<string> Permissions { get; set; } = new();
         public UserInfoDto? User { get; set; }
     }
 
@@ -56,6 +59,22 @@ namespace Ecomerce_dotnet.DTOs
         public Guid Id { get; set; }
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
+        public string? AvatarUrl { get; set; }
+        public bool RequiresPasswordChange { get; set; } = false;
         public List<string> Roles { get; set; } = new();
+        public List<string> Permissions { get; set; } = new();
+    }
+
+    public class ForceChangePasswordDto
+    {
+        [Required(ErrorMessage = "Current temporary password is required.")]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required.")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters long.")]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [Compare("NewPassword", ErrorMessage = "New password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

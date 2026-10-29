@@ -11,22 +11,24 @@ using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 
 namespace Ecomerce_dotnet.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("ApiPolicy")]
     public class AuthController : ControllerBase
     {
         private readonly UserManager<User> _userManager;
-        private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+        private readonly RoleManager<Role> _roleManager;
         private readonly IConfiguration _configuration;
         private readonly IJwtTokenService _tokenService;
 
         public AuthController(
             UserManager<User> userManager,
-            RoleManager<IdentityRole<Guid>> roleManager,
+            RoleManager<Role> roleManager,
             IConfiguration configuration,
             IJwtTokenService tokenService)
         {
@@ -36,8 +38,42 @@ namespace Ecomerce_dotnet.Controllers
             _tokenService = tokenService;
         }
 
+        private async Task<AuthResponseDto> BuildAuthResponseAsync(
+            User user,
+            string message,
+            string accessToken,
+            string refreshToken,
+            DateTime refreshExpiration)
+        {
+            var roles = (await _userManager.GetRolesAsync(user)).ToList();
+            var permissions = await _tokenService.GetUserPermissionsAsync(user.Id);
+
+            return new AuthResponseDto
+            {
+                Success = true,
+                Message = message,
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                RefreshTokenExpiration = refreshExpiration,
+                RequiresPasswordChange = user.MustChangePassword,
+                Roles = roles,
+                Permissions = permissions,
+                User = new UserInfoDto
+                {
+                    Id = user.Id,
+                    Email = user.Email ?? string.Empty,
+                    FullName = user.FullName,
+                    AvatarUrl = user.AvatarUrl,
+                    RequiresPasswordChange = user.MustChangePassword,
+                    Roles = roles,
+                    Permissions = permissions
+                }
+            };
+        }
+
         // 1. POST: api/auth/register (Registers a user with default 'Customer' role)
         [HttpPost("register")]
+        [EnableRateLimiting("LoginPolicy")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
             if (!ModelState.IsValid)
@@ -94,27 +130,19 @@ namespace Ecomerce_dotnet.Controllers
             user.RefreshTokenExpiryTime = refreshExpiration;
             await _userManager.UpdateAsync(user);
 
-            var roles = await _userManager.GetRolesAsync(user);
+            var response = await BuildAuthResponseAsync(
+                user,
+                "Registration successful.",
+                accessToken,
+                refreshToken,
+                refreshExpiration);
 
-            return Ok(new AuthResponseDto
-            {
-                Success = true,
-                Message = "Registration successful.",
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                RefreshTokenExpiration = refreshExpiration,
-                User = new UserInfoDto
-                {
-                    Id = user.Id,
-                    Email = user.Email!,
-                    FullName = user.FullName,
-                    Roles = roles.ToList()
-                }
-            });
+            return Ok(response);
         }
 
         // 2. POST: api/auth/login (Authenticates credentials & returns Tokens)
         [HttpPost("login")]
+        [EnableRateLimiting("LoginPolicy")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             if (!ModelState.IsValid)
@@ -162,23 +190,14 @@ namespace Ecomerce_dotnet.Controllers
             user.RefreshTokenExpiryTime = refreshExpiration;
             await _userManager.UpdateAsync(user);
 
-            var roles = await _userManager.GetRolesAsync(user);
+            var response = await BuildAuthResponseAsync(
+                user,
+                "Login successful.",
+                accessToken,
+                refreshToken,
+                refreshExpiration);
 
-            return Ok(new AuthResponseDto
-            {
-                Success = true,
-                Message = "Login successful.",
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                RefreshTokenExpiration = refreshExpiration,
-                User = new UserInfoDto
-                {
-                    Id = user.Id,
-                    Email = user.Email!,
-                    FullName = user.FullName,
-                    Roles = roles.ToList()
-                }
-            });
+            return Ok(response);
         }
 
         // 3. POST: api/auth/refresh-token (Rotates Access Token using valid Refresh Token)
@@ -242,23 +261,14 @@ namespace Ecomerce_dotnet.Controllers
                 user.RefreshTokenExpiryTime = refreshExpiration;
                 await _userManager.UpdateAsync(user);
 
-                var roles = await _userManager.GetRolesAsync(user);
+                var response = await BuildAuthResponseAsync(
+                    user,
+                    "Token refreshed successfully.",
+                    newAccessToken,
+                    newRefreshToken,
+                    refreshExpiration);
 
-                return Ok(new AuthResponseDto
-                {
-                    Success = true,
-                    Message = "Token refreshed successfully.",
-                    AccessToken = newAccessToken,
-                    RefreshToken = newRefreshToken,
-                    RefreshTokenExpiration = refreshExpiration,
-                    User = new UserInfoDto
-                    {
-                        Id = user.Id,
-                        Email = user.Email!,
-                        FullName = user.FullName,
-                        Roles = roles.ToList()
-                    }
-                });
+                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -291,7 +301,61 @@ namespace Ecomerce_dotnet.Controllers
             return Ok(new { success = true, message = "Refresh token revoked successfully." });
         }
 
-        // 5. POST: api/auth/google-login
+        // 5. POST: api/auth/force-change-password (First-login forced password change)
+        [Authorize]
+        [HttpPost("force-change-password")]
+        public async Task<IActionResult> ForceChangePassword([FromBody] ForceChangePasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { success = false, message = "Invalid user identity in token." });
+            }
+
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+            {
+                return NotFound(new { success = false, message = "User not found." });
+            }
+
+            // Change password using ASP.NET Core Identity password hasher verification
+            var changeResult = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+            if (!changeResult.Succeeded)
+            {
+                var errors = string.Join("; ", changeResult.Errors.Select(e => e.Description));
+                return BadRequest(new { success = false, message = $"Failed to change password: {errors}" });
+            }
+
+            // Unlock account by turning off MustChangePassword
+            user.MustChangePassword = false;
+
+            // Generate fresh token pair
+            var newAccessToken = await _tokenService.GenerateAccessTokenAsync(user);
+            var newRefreshToken = _tokenService.GenerateRefreshToken();
+
+            int refreshExpirationDays = int.TryParse(_configuration["JwtSettings:RefreshTokenExpirationDays"], out var days) ? days : 7;
+            var refreshExpiration = DateTime.UtcNow.AddDays(refreshExpirationDays);
+
+            user.RefreshToken = newRefreshToken;
+            user.RefreshTokenExpiryTime = refreshExpiration;
+            await _userManager.UpdateAsync(user);
+
+            var response = await BuildAuthResponseAsync(
+                user,
+                "Password changed successfully. Your account is now fully unlocked.",
+                newAccessToken,
+                newRefreshToken,
+                refreshExpiration);
+
+            return Ok(response);
+        }
+
+        // 6. POST: api/auth/google-login
         [HttpPost("google-login")]
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
         {
@@ -342,23 +406,14 @@ namespace Ecomerce_dotnet.Controllers
             user.RefreshTokenExpiryTime = refreshExpiration;
             await _userManager.UpdateAsync(user);
 
-            var roles = await _userManager.GetRolesAsync(user);
+            var response = await BuildAuthResponseAsync(
+                user,
+                "Google login successful.",
+                accessToken,
+                refreshToken,
+                refreshExpiration);
 
-            return Ok(new AuthResponseDto
-            {
-                Success = true,
-                Message = "Google login successful.",
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                RefreshTokenExpiration = refreshExpiration,
-                User = new UserInfoDto
-                {
-                    Id = user.Id,
-                    Email = user.Email!,
-                    FullName = user.FullName,
-                    Roles = roles.ToList()
-                }
-            });
+            return Ok(response);
         }
 
         // 6. POST: api/auth/telegram-login
@@ -392,6 +447,7 @@ namespace Ecomerce_dotnet.Controllers
                     UserName = syntheticEmail,
                     Email = syntheticEmail,
                     FullName = $"{dto.First_Name} {dto.Last_Name}".Trim(),
+                    AvatarUrl = dto.Photo_Url,
                     EmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow,
                     IsBanned = false
@@ -419,23 +475,14 @@ namespace Ecomerce_dotnet.Controllers
             user.RefreshTokenExpiryTime = refreshExpiration;
             await _userManager.UpdateAsync(user);
 
-            var roles = await _userManager.GetRolesAsync(user);
+            var response = await BuildAuthResponseAsync(
+                user,
+                "Telegram login successful.",
+                accessToken,
+                refreshToken,
+                refreshExpiration);
 
-            return Ok(new AuthResponseDto
-            {
-                Success = true,
-                Message = "Telegram login successful.",
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                RefreshTokenExpiration = refreshExpiration,
-                User = new UserInfoDto
-                {
-                    Id = user.Id,
-                    Email = user.Email!,
-                    FullName = user.FullName,
-                    Roles = roles.ToList()
-                }
-            });
+            return Ok(response);
         }
 
         private bool VerifyTelegramHash(TelegramLoginDto dto, string token)

@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Ecomerce_dotnet.Data;
 using Ecomerce_dotnet.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -16,11 +19,35 @@ namespace Ecomerce_dotnet.Services
     {
         private readonly IConfiguration _config;
         private readonly UserManager<User> _userManager;
+        private readonly ApplicationDbContext _context;
 
-        public JwtTokenService(IConfiguration config, UserManager<User> userManager)
+        public JwtTokenService(
+            IConfiguration config,
+            UserManager<User> userManager,
+            ApplicationDbContext context)
         {
             _config = config;
             _userManager = userManager;
+            _context = context;
+        }
+
+        public async Task<List<string>> GetUserPermissionsAsync(Guid userId)
+        {
+            // Flatten all distinct permissions through the junction tables (User -> UserRole -> Role -> RolePermission -> Permission)
+            var permissions = await _context.UserRoles
+                .AsNoTracking()
+                .Where(ur => ur.UserId == userId)
+                .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Name))
+                .Distinct()
+                .ToListAsync();
+
+            return permissions;
+        }
+
+        public async Task<List<string>> GetUserRolesAsync(User user)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+            return roles.ToList();
         }
 
         public async Task<string> GenerateAccessTokenAsync(User user)
@@ -30,7 +57,8 @@ namespace Ecomerce_dotnet.Services
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var roles = await _userManager.GetRolesAsync(user);
+            var roles = await GetUserRolesAsync(user);
+            var permissions = await GetUserPermissionsAsync(user.Id);
 
             var claims = new List<Claim>
             {
@@ -40,9 +68,16 @@ namespace Ecomerce_dotnet.Services
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
+            // Pack roles into standard role claims
             foreach (var role in roles)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            // Pack permissions as individual custom claims into JWT token
+            foreach (var permission in permissions)
+            {
+                claims.Add(new Claim("permission", permission));
             }
 
             int expirationMinutes = int.TryParse(jwtSettings["AccessTokenExpirationMinutes"], out var mins) ? mins : 60;
